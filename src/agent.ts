@@ -1,4 +1,4 @@
-import { Collection, DataContractRegistry, loadConfig, loadTypes, validateJsonSchemaFrontmatter, type TypeDefinition } from "@callumalpass/mdbase";
+import { Collection, DataContractRegistry, loadConfig, loadTypes, validateJsonSchemaFrontmatter, type TypeDefinition, type MdbaseSettings } from "@callumalpass/mdbase";
 import { readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, posix } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -32,7 +32,7 @@ export async function withAgent<T>(flagPath: string | undefined, run: (context: 
   const collection = new Collection(root, { ...config, settings: { ...config.settings, default_validation: "error" } }, loaded.types, {}, registry.registry);
   try {
     const normalized = normalizeTaskTypeDefinition(loaded.types.get("task"));
-    const context = new AgentContext(root, collection, buildFieldMapping(normalized.fields, normalized.displayNameKey), loaded.types, config.settings.explicit_type_keys);
+    const context = new AgentContext(root, collection, buildFieldMapping(normalized.fields, normalized.displayNameKey), loaded.types, config.settings.explicit_type_keys, config.settings);
     return await run(context);
   } finally {
     await collection.close();
@@ -46,6 +46,7 @@ export class AgentContext {
     public mapping: FieldMapping,
     public types: Map<string, TypeDefinition>,
     public typeKeys: string[],
+    public settings: MdbaseSettings,
   ) {}
 
   async exact(ref: string): Promise<string> {

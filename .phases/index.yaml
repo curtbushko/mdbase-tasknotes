@@ -1,6 +1,6 @@
 project: "mtn Agent Task Workflows"
 prd: "prd-agent-task-workflows.md"
-current_phase: 3
+current_phase: 4
 phases:
   - id: 1
     name: "Compatibility baseline, collection diagnostics, and safe initialization"
@@ -15,8 +15,8 @@ phases:
   - id: 3
     name: "Literal creation, naming, and idempotent retries"
     file: "phase-03-literal-creation.md"
-    status: pending
-    progress: "0/5"
+    status: completed
+    progress: "5/5"
   - id: 4
     name: "Markdown specifications, evidence, and resumable context"
     file: "phase-04-content-and-evidence.md"

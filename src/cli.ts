@@ -40,7 +40,7 @@ program
 
 program
   .command("agent <operation> [ref]")
-  .description("Exact-reference automation (show, patch); structured JSON input, no NLP")
+  .description("Exact-reference automation (create, show, patch); structured JSON input, no NLP")
   .option("--input <file>", "JSON request file, or - for stdin")
   .option("--json", "Output version 1 JSON success/error envelope")
   .action((operation: string, ref: string | undefined, opts: { input?: string; json?: boolean }) =>

@@ -106,6 +106,35 @@ by this patch and remain phase 8 work. This is not a multi-record transaction,
 an exclusive task claim, or a strict cross-application CAS guarantee; core revision
 and mtime checks still have a small check-to-publication race.
 
+## Literal creation
+
+`mtn agent create --input request.json --json` accepts a request such as:
+
+```json
+{"title":"tomorrow #literal","path":"tasks/exact.md","description":"## Scope\nBuild this literally.","fields":{"priority":"high","contexts":["agent"]},"retryKey":"project-phase-task"}
+```
+
+The optional `path` is exact; omission uses the collection's supported naming
+contract. `descriptionFile` reads UTF-8 (or `-` for stdin), mutually exclusive with
+`description`. The entire JSON request can also arrive on stdin via `--input -`;
+it cannot simultaneously consume a second content stream from that same stdin.
+No title/body NLP is invoked. Structured `fields` use actual mapped keys and
+schema-permitted native JSON values. Relationships require semantic operations.
+
+An occupied explicit path fails. Generated second-granularity timestamp/time/
+second/unix/zettel profiles try at most 60 consecutive second offsets, preserving
+the configured naming format. Other collisions fail with an actionable diagnostic;
+no arbitrary title suffixes or overwrites are introduced. Exclusions, nested
+collection boundaries, traversal, and symlinks are checked before publication.
+Runtime-only values such as projectFolder fail; fixed inboxes are supported.
+
+Opt-in creation retries persist inspectable `mtnCreateRetry: {key,intent}` metadata
+in the task only if its schema permits that field. Identical retries return the
+original exact reference with `changed:false`; conflicting intent or duplicate
+key identities fail explicitly. Strict schemas must explicitly permit this optional
+metadata at their authoritative configuration layer. Keys are not a cross-process
+exclusive-claim or uniqueness-lock protocol. No hidden retry database is used.
+
 ## Verification baseline
 
 Before implementation, `npm test` passed 1,041 tests. Type checking exposed existing

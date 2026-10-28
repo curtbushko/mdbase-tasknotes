@@ -46,11 +46,13 @@
     "commander": "^12.1.0",
     "date-fns": "^4.1.0",
     "ora": "^5.4.1",
+    "picomatch": "^4.0.7",
     "rrule": "^2.8.1",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/picomatch": "^4.0.3",
     "tasknotes-nlp-core": "^0.1.2",
     "tsup": "^8.0.0",
     "typescript": "^5.5.0"

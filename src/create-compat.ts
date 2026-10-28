@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { Collection } from "@callumalpass/mdbase";
+import type { Collection, TypeDefinition } from "@callumalpass/mdbase";
 import type { FieldMapping } from "./field-mapping.js";
 import {
   denormalizeFrontmatter,
@@ -99,6 +99,28 @@ export async function createTaskWithCompat(
     ...input,
     path: pathResolution.path,
   }) as CreateResultLike;
+}
+
+export function prepareLiteralCreation(
+  type: TypeDefinition,
+  mapping: FieldMapping,
+  fields: UnknownRecord,
+  now = new Date(),
+  explicitPath?: string,
+): { path?: string; frontmatter: UnknownRecord; errorMessage?: string } {
+  const taskType: TaskTypeDefLike = {
+    ...type,
+    fields: normalizeTaskTypeDefinition(type).fields,
+    match: type.match ? { ...type.match, path_glob: typeof type.match.path_glob === "string" ? type.match.path_glob : undefined } : undefined,
+  };
+  const frontmatter = structuredClone(fields);
+  applyFieldDefaults(frontmatter, taskType);
+  applyTimestampDefaults(frontmatter, mapping, taskType);
+  applyMatchDefaults(frontmatter, taskType);
+  if (explicitPath) return { path: explicitPath, frontmatter };
+  const result = derivePathFromType(taskType, frontmatter, mapping, now);
+  return { path: result.path, frontmatter, errorMessage: result.path ? undefined : result.errorMessage
+    ?? `Cannot resolve naming template ${result.template ?? ""}; missing or unsupported values: ${(result.missingKeys ?? []).join(", ")}. Configure a fixed folder/template or supply an explicit path.` };
 }
 
 function getTaskTypeDef(collection: Collection): TaskTypeDefLike | undefined {

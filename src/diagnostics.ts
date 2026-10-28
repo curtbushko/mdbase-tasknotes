@@ -73,7 +73,7 @@ export async function diagnoseCollection(flagPath?: string) {
       coreRename: typeof Collection.prototype.rename === "function",
       coreContractView: typeof Collection.prototype.getContractView === "function",
       coreValidation: typeof Collection.prototype.validate === "function",
-      literalCreation: false,
+      literalCreation: true,
       agentMutations: true,
       agentExactPaths: true,
       atomicSingleTaskReplacement: true,
