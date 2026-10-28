@@ -200,6 +200,28 @@ regex, which previously consumed leading blank lines from descriptions (and hid
 evidence boundaries on empty descriptions). Literal body round-trips now preserve
 those lines. The patch remains reproducible from the original retained archive.
 
+## Hierarchy
+
+`agent project-add REF` and `project-remove` accept `{target:"exact/record.md"}`.
+`project-replace` also requires `replacement`, identifying the old membership
+explicitly. Native mapped projects links are the only parent/membership storage;
+unrelated memberships survive. Compatible non-task project records are valid.
+Generic typed projects writes pass the same hierarchy checks. New self/multi-hop
+cycles are rejected; observed broken links may be retained while repairing others.
+
+`agent hierarchy REF [--input FILE] --json` returns immediate children, distinct
+transitive descendants, parent status, leaf-task progress, and cycle diagnostics.
+`{includeArchived:true}` opts into archived records/branches. Default traversal
+excludes them, but shared descendants reachable via a live branch count once.
+Recurring leaves count once by base status. Empty scopes return zero/zero and null
+percentage. No parent status is changed and no ancestor links or prerequisite
+edges are inferred. `agent show` includes this derived hierarchy context.
+
+Graph queries use a single included-record snapshot. Link ambiguity is reported
+conservatively rather than choosing a similar title. Progress is snapshot
+information, not scheduling or ownership. PRD/story references stay ordinary body
+text, preserved by relationship edits.
+
 ## Verification baseline
 
 Before implementation, `npm test` passed 1,041 tests. Type checking exposed existing

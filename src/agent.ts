@@ -6,6 +6,7 @@ import { resolveCollectionPath } from "./config.js";
 import { buildFieldMapping, normalizeTaskTypeDefinition, type FieldMapping } from "./field-mapping.js";
 import { inspectContent } from "./task-content.js";
 import { statusFields } from "./task-lifecycle.js";
+import { validateProjects } from "./task-hierarchy.js";
 
 type RecordValue = Record<string, unknown>;
 export class AgentError extends Error {
@@ -51,7 +52,7 @@ export class AgentContext {
     public settings: MdbaseSettings,
   ) {}
 
-  async exact(ref: string): Promise<string> {
+  async exact(ref: string, taskOnly = true): Promise<string> {
     if (!ref || isAbsolute(ref) || ref.includes("\\") || ref.includes("\0") || !ref.endsWith(".md") || posix.normalize(ref) !== ref || ref.startsWith("../")) {
       throw new AgentError("invalid_reference", "Use an exact collection-relative Markdown path, not a title or traversal.");
     }
@@ -63,7 +64,7 @@ export class AgentContext {
     }
     const contained = relative(await realpath(this.root), actual);
     if (isAbsolute(contained) || contained === ".." || contained.startsWith("../")) throw new AgentError("invalid_reference", "Reference escapes the selected collection.");
-    const tasks = coreResult(await this.collection.query({ types: ["task"], limit: Number.MAX_SAFE_INTEGER }));
+    const tasks = coreResult(await this.collection.query({ ...(taskOnly ? { types: ["task"] } : {}), limit: Number.MAX_SAFE_INTEGER }));
     if (!tasks.results?.some(task => task.path === ref)) throw new AgentError("missing_target", `Not an included task: ${ref}`);
     return ref;
   }
@@ -103,6 +104,7 @@ export class AgentContext {
     }
     const names = this.collection.getTypesForFile(current.ref, current.frontmatter);
     if (!isDeepStrictEqual(this.collection.getTypesForFile(current.ref, candidate), names)) throw new AgentError("protected_field", "Cannot change task/type identification through generic editing.");
+    if (Object.hasOwn(fields, this.mapping.roleToField.projects)) await validateProjects(this, current.ref, candidate[this.mapping.roleToField.projects] ?? [], current.frontmatter[this.mapping.roleToField.projects]);
     this.validateTypes(candidate, names);
     if (isDeepStrictEqual(candidate, current.frontmatter) && body === current.body) return { ...await this.read(current.ref), changed: false };
     coreResult(await this.collection.update({ path: current.ref, fields, body, if_revision: current.revision }));
@@ -119,7 +121,7 @@ export class AgentContext {
     let desiredStatus: unknown;
     const protectedFields = new Set([
       ...this.typeKeys, "blocking", "isBlocking", "isBlocked", "hasSubtasks", "depends_on",
-      ...["projects", "blockedBy", "status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
+      ...["blockedBy", "status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
     ]);
     for (const type of this.types.values()) {
       for (const [name, field] of Object.entries(type.fields ?? {})) if (field.computed) protectedFields.add(name);

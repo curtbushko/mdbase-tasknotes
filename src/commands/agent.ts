@@ -2,6 +2,8 @@ import { AgentError, invalid, readAgentInput, withAgent } from "../agent.js";
 import { createAgentTask } from "../agent-create.js";
 import { appendEvidence, describeTask } from "../task-content.js";
 import { transitionInstance, transitionTask } from "../task-lifecycle.js";
+import { editProject, hierarchy, hierarchySnapshot } from "../task-hierarchy.js";
+import { TaskGraph } from "../task-graph.js";
 
 export async function agentCommand(operation: string, ref: string | undefined, options: { path?: string; input?: string; json?: boolean }): Promise<void> {
   try {
@@ -13,7 +15,9 @@ export async function agentCommand(operation: string, ref: string | undefined, o
         return createAgentTask(context, input);
       }
       if (!ref) invalid("Supply an exact task reference.");
-      if (operation === "show") return context.read(ref);
+      if (operation === "show") return { ...await context.read(ref), hierarchy: hierarchySnapshot(await TaskGraph.load(context), ref) };
+      if (operation === "hierarchy") return hierarchy(context, ref, input);
+      if (["project-add", "project-remove", "project-replace"].includes(operation)) return editProject(context, ref, operation, input);
       if (operation === "patch") return context.patch(ref, input);
       if (operation === "describe") return describeTask(context, ref, input);
       if (operation === "note") return appendEvidence(context, ref, input);
