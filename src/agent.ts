@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve, posix } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { resolveCollectionPath } from "./config.js";
 import { buildFieldMapping, normalizeTaskTypeDefinition, type FieldMapping } from "./field-mapping.js";
+import { inspectContent } from "./task-content.js";
 
 type RecordValue = Record<string, unknown>;
 export class AgentError extends Error {
@@ -69,7 +70,16 @@ export class AgentContext {
   async read(ref: string) {
     await this.exact(ref);
     const read = coreResult(await this.collection.read(ref));
-    return { ref, frontmatter: read.rawFrontmatter ?? read.frontmatter ?? {}, effectiveFrontmatter: read.frontmatter ?? {}, body: read.body ?? "", revision: read.revision, safety: "strict-validation; fresh-read; core conflict checks; no exclusive claim" };
+    const body = read.body ?? "";
+    const { suffix: _suffix, ...content } = inspectContent(body);
+    return { ref, frontmatter: read.rawFrontmatter ?? read.frontmatter ?? {}, effectiveFrontmatter: read.frontmatter ?? {}, body, ...content, revision: read.revision, safety: "strict-validation; fresh-read; core conflict checks; no exclusive claim" };
+  }
+
+  async writeBody(current: { ref: string; body: string; frontmatter: RecordValue; revision?: string }, body: string) {
+    if (body === current.body) return { ...await this.read(current.ref), changed: false };
+    this.validateTypes(current.frontmatter, this.collection.getTypesForFile(current.ref, current.frontmatter));
+    coreResult(await this.collection.update({ path: current.ref, body, if_revision: current.revision }));
+    return { ...await this.read(current.ref), changed: true };
   }
 
   validateTypes(frontmatter: RecordValue, typeNames: string[]): void {

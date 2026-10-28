@@ -135,6 +135,30 @@ key identities fail explicitly. Strict schemas must explicitly permit this optio
 metadata at their authoritative configuration layer. Keys are not a cross-process
 exclusive-claim or uniqueness-lock protocol. No hidden retry database is used.
 
+## Description and evidence
+
+`agent describe REF --input FILE --json` replaces `description` (or reads
+`descriptionFile`) while preserving the entire evidence suffix verbatim. Empty
+string explicitly clears description. `agent note REF` accepts `content` or
+`contentFile`, optional `timestamp`, `author`, `role`, `category`, and `retryKey`.
+Build/review/fix are ordinary categories; attribution is caller-supplied, not
+authenticated. First append to a plain body requires explicit `adopt:true`: it adds
+an evidence boundary after the existing description without rewriting it.
+
+The Markdown convention uses an HTML `mtn:evidence:v1` boundary and framed
+`mtn:entry:v1` / `mtn:end-entry:v1` entries. Metadata is base64url-encoded JSON in
+comments; headings, timestamps, attribution, and note text remain readable in any
+Markdown viewer. No frontmatter additions or sidecar results are required for
+evidence retry keys, including on strict schemas. Identical retries are no-ops;
+conflicting reuse fails. Reserved delimiters in supplied content/labels are rejected
+to avoid ambiguous framing. Human bodies are never implicitly restructured.
+
+`agent show` returns description and structured evidence alongside the full
+original body. It reports malformed convention metadata as `contentIssues`;
+mutations refuse to hide malformed history until explicitly repaired. Unstructured
+human text remains available in the body and survives description/evidence edits.
+Review approval is evidence only, not an automatic transition to completion.
+
 ## Verification baseline
 
 Before implementation, `npm test` passed 1,041 tests. Type checking exposed existing

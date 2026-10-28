@@ -1,10 +1,11 @@
 import { AgentError, invalid, readAgentInput, withAgent } from "../agent.js";
 import { createAgentTask } from "../agent-create.js";
+import { appendEvidence, describeTask } from "../task-content.js";
 
 export async function agentCommand(operation: string, ref: string | undefined, options: { path?: string; input?: string; json?: boolean }): Promise<void> {
   try {
     const input = await readAgentInput(options.input);
-    if (options.input === "-" && input && typeof input === "object" && Object.values(input).includes("-")) invalid("Cannot read a request and a separate content stream from the same stdin.");
+    if (options.input === "-" && input && typeof input === "object" && Object.entries(input).some(([key, value]) => key.endsWith("File") && value === "-")) invalid("Cannot read a request and a separate content stream from the same stdin.");
     const result = await withAgent(options.path, async context => {
       if (operation === "create") {
         if (ref) invalid("Creation takes its optional path from the JSON request.");
@@ -13,6 +14,8 @@ export async function agentCommand(operation: string, ref: string | undefined, o
       if (!ref) invalid("Supply an exact task reference.");
       if (operation === "show") return context.read(ref);
       if (operation === "patch") return context.patch(ref, input);
+      if (operation === "describe") return describeTask(context, ref, input);
+      if (operation === "note") return appendEvidence(context, ref, input);
       throw new AgentError("invalid_input", `Unknown agent operation: ${operation}`);
     });
     if (options.json) console.log(JSON.stringify({ version: 1, ok: true, result }));

@@ -77,7 +77,7 @@ export async function diagnoseCollection(flagPath?: string) {
       agentMutations: true,
       agentExactPaths: true,
       atomicSingleTaskReplacement: true,
-      evidence: false,
+      evidence: true,
       hierarchy: false,
       dependencies: false,
       relocation: false,
