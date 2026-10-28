@@ -83,7 +83,7 @@ export async function diagnoseCollection(flagPath?: string) {
       recurringInstanceTransitions: true,
       hierarchy: true,
       dependencies: true,
-      relocation: false,
+      relocation: true,
       exclusiveClaims: false,
       strictCrossApplicationCas: false,
     },

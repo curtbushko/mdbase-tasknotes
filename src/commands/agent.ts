@@ -5,6 +5,7 @@ import { transitionInstance, transitionTask } from "../task-lifecycle.js";
 import { editProject, hierarchy, hierarchySnapshot } from "../task-hierarchy.js";
 import { TaskGraph, graphCycles } from "../task-graph.js";
 import { dependencyQuery, DependencySnapshot, editDependency } from "../task-dependencies.js";
+import { applyMove, movePlan } from "../task-relocation.js";
 
 export async function agentCommand(operation: string, ref: string | undefined, options: { path?: string; input?: string; json?: boolean }): Promise<void> {
   try {
@@ -27,6 +28,8 @@ export async function agentCommand(operation: string, ref: string | undefined, o
       }
       if (["ready", "blocked", "dependencies"].includes(operation)) return dependencyQuery(context, operation, ref, input);
       if (!ref) invalid("Supply an exact task reference.");
+      if (operation === "move-plan") return movePlan(context, ref, input);
+      if (operation === "move-apply") return applyMove(context, ref, input);
       if (operation === "show") return { ...await context.read(ref), hierarchy: hierarchySnapshot(await TaskGraph.load(context), ref), dependencies: (await DependencySnapshot.load(context)).evaluate(ref) };
       if (["depends-add", "depends-remove", "depends-replace"].includes(operation)) return editDependency(context, ref, operation, input);
       if (operation === "hierarchy") return hierarchy(context, ref, input);

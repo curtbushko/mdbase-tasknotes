@@ -1,6 +1,6 @@
 // Reproducible local dependency patch: preserve the pinned APIs, harden file writes.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -16,7 +16,7 @@ try {
   source = source.replace('const DEFAULT_SPEC_VERSION =', `
 // mtn patch: same-directory temp + rename avoids truncating an existing task.
 // Creation publishes with link(2), refusing a target created by another writer.
-async function atomicWriteRecord(destination, content, exclusive = false) {
+export async function atomicWriteRecord(destination, content, exclusive = false) {
     const temporary = path.join(path.dirname(destination), ".mtn-write-" + ulid() + ".tmp");
     let mode = 0o666;
     if (!exclusive) mode = (await fs.promises.stat(destination)).mode & 0o777;
@@ -35,7 +35,13 @@ async function atomicWriteRecord(destination, content, exclusive = false) {
     }
 }
 const DEFAULT_SPEC_VERSION =`);
+  const updateNeedle = '            Object.assign(frontmatter, updates);\n        }';
+  if (!source.includes(updateNeedle)) throw new Error('Pinned update implementation changed.');
+  source = source.replace(updateNeedle, updateNeedle + '\n        for (const field of input.unset ?? []) delete frontmatter[field];');
   writeFileSync(file, source);
+  const contractsTypes = join(temp, 'package/dist/operations/contracts.d.ts');
+  const contractsSource = readFileSync(contractsTypes, 'utf8');
+  writeFileSync(contractsTypes, contractsSource.replace('export interface UpdateInput {', 'export interface UpdateInput {\n    unset?: string[];'));
   // The original delimiter regex used \\s*, consuming leading blank lines from
   // descriptions. Restrict it to horizontal whitespace for literal round-trips.
   const parserFile = join(temp, 'package/dist/frontmatter/parser.js');
@@ -48,6 +54,18 @@ const DEFAULT_SPEC_VERSION =`);
     const index = join(temp, `package/dist/index.${extension}`);
     writeFileSync(index, readFileSync(index, 'utf8') + '\nexport { LinkResolver } from "./operations/link-resolver.js";\nexport { parseLink } from "./links/parser.js";\n');
   }
+  for (const extension of ['js', 'd.ts']) {
+    copyFileSync(resolve(`scripts/mdbase-relocation.${extension}`), join(temp, `package/dist/operations/relocation-plan.${extension}`));
+    const index = join(temp, `package/dist/index.${extension}`);
+    writeFileSync(index, readFileSync(index, 'utf8') + '\nexport { planRecordRename, moveRecordNoClobber } from "./operations/relocation-plan.js";\nexport { atomicWriteRecord } from "./operations/collection.js";\nexport { serializeFile } from "./frontmatter/parser.js";\n');
+  }
+  const collectionTypes = join(temp, 'package/dist/operations/collection.d.ts');
+  writeFileSync(collectionTypes, readFileSync(collectionTypes, 'utf8') + '\nexport declare function atomicWriteRecord(destination: string, content: string, exclusive?: boolean): Promise<void>;\n');
+  let linkParser = readFileSync(join(temp, 'package/dist/links/parser.js'), 'utf8');
+  const markdownStart = linkParser.indexOf('function parseMarkdownLink(');
+  if (markdownStart < 0) throw new Error('Pinned Markdown parser changed.');
+  linkParser = linkParser.slice(0, markdownStart) + linkParser.slice(markdownStart).replace('    const is_relative = target.startsWith', '    target = decodeURI(target);\n    const is_relative = target.startsWith');
+  writeFileSync(join(temp, 'package/dist/links/parser.js'), linkParser);
   const resolverFile = join(temp, 'package/dist/operations/link-resolver.js');
   let resolver = readFileSync(resolverFile, 'utf8');
   const resolverNeedle = '            if (!this.idField)';
@@ -63,7 +81,7 @@ ${resolverNeedle}`);
   writeFileSync(resolverFile, resolver);
   const manifest = join(temp, 'package/package.json');
   const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
-  pkg.version = '0.3.0-rc.4-mtn.3';
+  pkg.version = '0.3.0-rc.4-mtn.6';
   writeFileSync(manifest, JSON.stringify(pkg, null, 2) + '\n');
   execFileSync('npm', ['pack', join(temp, 'package'), '--pack-destination', resolve('vendor')], { stdio: 'inherit' });
 } finally {

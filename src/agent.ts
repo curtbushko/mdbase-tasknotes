@@ -33,7 +33,7 @@ export async function withAgent<T>(flagPath: string | undefined, run: (context: 
   const registry = await DataContractRegistry.load(root, config, loaded.types);
   if (!registry.valid || !registry.registry) throw new AgentError("configuration_error", registry.error?.message ?? "Invalid contracts.");
   // This stricter per-operation policy is in memory only, never saved to the collection.
-  const collection = new Collection(root, { ...config, settings: { ...config.settings, default_validation: "error" } }, loaded.types, {}, registry.registry);
+  const collection = new Collection(root, { ...config, settings: { ...config.settings, default_validation: "error", write_nulls: "explicit", write_empty_lists: true } }, loaded.types, {}, registry.registry);
   try {
     const normalized = normalizeTaskTypeDefinition(loaded.types.get("task"));
     const context = new AgentContext(root, collection, buildFieldMapping(normalized.fields, normalized.displayNameKey), loaded.types, config.settings.explicit_type_keys, config.settings);
@@ -109,7 +109,10 @@ export class AgentContext {
     if (Object.hasOwn(fields, this.mapping.roleToField.blockedBy)) await validateDependencies(this, current.ref, candidate[this.mapping.roleToField.blockedBy] ?? [], current.frontmatter[this.mapping.roleToField.blockedBy]);
     this.validateTypes(candidate, names);
     if (isDeepStrictEqual(candidate, current.frontmatter) && body === current.body) return { ...await this.read(current.ref), changed: false };
-    coreResult(await this.collection.update({ path: current.ref, fields, body, if_revision: current.revision }));
+    coreResult(await this.collection.update({ path: current.ref,
+      fields: Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined)),
+      unset: Object.entries(fields).filter(([, value]) => value === undefined).map(([field]) => field),
+      body, if_revision: current.revision }));
     return { ...await this.read(current.ref), changed: true };
   }
 

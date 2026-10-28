@@ -9,7 +9,7 @@ function fixture() {
   const root = makeTempDir('mtn-agent-');
   assert.equal(runCli(['init', root]).status, 0);
   for (const path of ['a.md', 'b.md']) {
-    writeFileSync(join(root, 'tasks', path), '---\ntype: task\ntitle: Duplicate\nstatus: open\ndateCreated: 2026-01-01T00:00:00Z\ndateModified: 2026-01-01T00:00:00Z\ncustomHuman: keep\n---\nHuman body\n');
+    writeFileSync(join(root, 'tasks', path), '---\ntype: task\ntitle: Duplicate\nstatus: open\ndateCreated: 2026-01-01T00:00:00Z\ndateModified: 2026-01-01T00:00:00Z\ncustomHuman: keep\ncustomNull: null\n---\nHuman body\n');
   }
   return root;
 }
@@ -57,6 +57,7 @@ test('agent typed patch preserves observed edits/body and treats retries as no-o
   assert.deepEqual(patched.data.result.frontmatter.contexts, ['one', 'two']);
   assert.equal(patched.data.result.frontmatter.customNested.enabled, true);
   assert.equal(patched.data.result.frontmatter.customHuman, 'keep');
+  assert.equal(patched.data.result.frontmatter.customNull, null);
   assert.match(patched.data.result.body, /Edited by human/);
   const beforeRetry = readFileSync(path, 'utf8');
   const retry = agent(root, 'patch', 'tasks/a.md', { operations: [{ op: 'set', field: 'timeEstimate', value: 15 }] });
@@ -100,6 +101,7 @@ test('agent honors custom mapping and declared additional-property constraints u
   type.schema.value.additionalProperties = false;
   type.schema.value.properties.type = { const: 'task' };
   type.schema.value.properties.customHuman = { type: 'string' };
+  type.schema.value.properties.customNull = { type: 'null' };
   writeFileSync(path, `---\n${YAML.stringify(type)}---\n`);
   for (const input of [
     { operations: [{ op: 'set', field: 'rank', value: 0 }] },

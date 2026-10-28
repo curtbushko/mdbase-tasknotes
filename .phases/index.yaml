@@ -1,6 +1,6 @@
 project: "mtn Agent Task Workflows"
 prd: "prd-agent-task-workflows.md"
-current_phase: 8
+current_phase: 9
 phases:
   - id: 1
     name: "Compatibility baseline, collection diagnostics, and safe initialization"
@@ -40,8 +40,8 @@ phases:
   - id: 8
     name: "Explicit task relocation and failure recovery"
     file: "phase-08-relocation.md"
-    status: pending
-    progress: "0/5"
+    status: completed
+    progress: "5/5"
   - id: 9
     name: "End-to-end workflows, interoperability, and release verification"
     file: "phase-09-release-verification.md"

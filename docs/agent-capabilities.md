@@ -16,7 +16,7 @@ fields/path_pattern and current JSON Schema/collection.path are not interchangea
 | File writes | Patched Collection.create/update with atomic publication | Agent typed patch and existing interactive commands |
 | Naming | path_pattern; collection.path.pattern; TaskNotes runtime template compatibility adapter | Existing capture; literal/collision policy planned |
 | Lifecycle | Model operations and core lifecycle actions | Existing completion/recurrence; unified agent transitions planned |
-| References | Collection.rename with update_refs | Core primitive exists; safe preview/recovery CLI not yet implemented |
+| References | Local-fork planRecordRename / moveRecordNoClobber / atomicWriteRecord | `agent move-plan` / `move-apply`, with journal |
 | Hierarchy/dependencies/content | Native projects, blockedBy, Markdown | Agent operations planned phases 4/6/7 |
 | Claims/strict cross-application CAS | Not promised | Not supported |
 
@@ -265,6 +265,51 @@ collection fields are accessed. Snapshot results are not leases or exclusive cla
 Dependency policy semantics were checked against tasknotes-spec sections 9.11 and
 10.2 (https://github.com/callumalpass/tasknotes-spec). This is automated/spec-level
 compatibility evidence, not a claim that manual Obsidian plugin checks were run.
+
+## Explicit relocation and recovery
+
+`agent move-plan REF --input request.json --json` accepts `{to:"archive/task.md"}`.
+It writes nothing: the result contains exact paths, snapshot hashes, affected
+records, reference changes, warnings, capabilities, and a planHash. Save that result
+and pass `{plan: RESULT}` to `agent move-apply REF`. Apply recomputes and compares
+the plan against the latest included records before writing. Occupied/unsafe paths,
+symlinks, nested collections, and stale edits fail safely. Title, status, identities,
+project membership, and graph relationships are not reassigned by a storage move.
+
+The supported reference profile covers declared link fields, mapped native
+projects, nested blockedBy.uid, ordinary inline Markdown/wikilinks, aliases/anchors,
+and outgoing relative-link meaning in the moved note. Code fences (backticks and
+tildes), inline code, unrelated URLs, and plain text are not globally replaced.
+Known unsupported forms (such as reference-style Markdown definitions or nested/
+titled link targets) produce explicit warnings. Apply refuses them unless the
+caller supplies acceptLimitations:true, and then reports
+referenceRepairComplete:false rather than claiming full repair.
+
+Before any task changes, apply saves before copies and an inspectable journal under
+`.mtn-recovery/UUID/`. This directory must already be excluded; existing config is
+never silently repaired. Source publication uses a same-filesystem no-clobber core
+move; cross-filesystem moves fail rather than falling back to unsafe replacement.
+Reference writes are individually atomic, but the overall move is **not** a
+multi-record transaction. An interruption/failure reports observed paths/hashes,
+retains backups, exits nonzero, and blocks further moves until recovery is resolved.
+A completed identical retry is a no-op only when recorded outputs still match.
+
+For recovery, stop edits, inspect journal.json and the exact `.before.txt` copies,
+and compare beforeHash/afterHash with observed files. Preserve newer human edits
+separately. Either restore original source/references from before copies or finish
+the intended repairs. Verify the resulting paths, content, and references; then
+explicitly mark the journal status recovered. Keep the journal/backups and generate
+a new plan. No command automatically overwrites newer edits or discards failed
+recovery data. Injected mid-move failure is covered by automated regressions.
+
+The active dependency contribution is **0.3.0-rc.4-mtn.6**. In addition to previous
+patches, it exposes pure reference planning, explicit no-clobber moves, atomic
+publication, and serialization as supported public APIs; corrects percent-encoded
+Markdown target resolution; and provides explicit unset fields without converting
+unset to null. Agent writes preserve permitted nulls and empty lists in memory
+without rewriting collection settings. This closes a semantic-preservation gap in
+the original writer's omit-null behavior. Source is reproducible using
+scripts/patch-mdbase.mjs and scripts/mdbase-relocation.{js,d.ts}.
 
 ## Verification baseline
 
