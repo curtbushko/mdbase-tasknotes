@@ -21,6 +21,7 @@ import { interactiveCommand } from "./commands/interactive.js";
 import { configCommand } from "./commands/config.js";
 import { skipCommand, unskipCommand } from "./commands/skip.js";
 import { diagnoseCommand } from "./commands/diagnose.js";
+import { agentCommand } from "./commands/agent.js";
 
 const program = new Command();
 const cliVersion = readPackageVersion();
@@ -36,6 +37,14 @@ program
   .description("Inspect effective collection configuration and supported capabilities without writing")
   .option("--json", "Output versioned JSON diagnostics")
   .action((opts: { json?: boolean }) => diagnoseCommand({ ...opts, path: program.opts().path }));
+
+program
+  .command("agent <operation> [ref]")
+  .description("Exact-reference automation (show, patch); structured JSON input, no NLP")
+  .option("--input <file>", "JSON request file, or - for stdin")
+  .option("--json", "Output version 1 JSON success/error envelope")
+  .action((operation: string, ref: string | undefined, opts: { input?: string; json?: boolean }) =>
+    agentCommand(operation, ref, { ...opts, path: program.opts().path }));
 
 // Init
 program
@@ -280,4 +289,21 @@ function readPackageVersion(): string {
   return pkg.version;
 }
 
-program.parse();
+// Keep the existing command output contracts; the explicit agent JSON surface also
+// envelopes Commander argument/option failures rather than leaking decorated text.
+const agentJsonMode = process.argv.includes("agent") && process.argv.includes("--json");
+if (agentJsonMode) {
+  program.configureOutput({ writeErr: () => {} });
+  program.exitOverride();
+  for (const command of program.commands) {
+    command.configureOutput({ writeErr: () => {} });
+    command.exitOverride();
+  }
+}
+program.parseAsync().catch((error: Error & { code?: string; exitCode?: number }) => {
+  if (agentJsonMode) {
+    if (error.code === "commander.helpDisplayed" || error.exitCode === 0) return;
+    console.log(JSON.stringify({ version: 1, ok: false, error: { code: "invalid_input", message: error.message } }));
+  } else console.error(error.message);
+  process.exitCode = 1;
+});

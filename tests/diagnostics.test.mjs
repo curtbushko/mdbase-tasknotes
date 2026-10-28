@@ -28,7 +28,7 @@ test('diagnostics is read-only and reports effective current contract and capabi
   assert.equal(data.result.selectionSource, '--path');
   assert.equal(data.result.mapping.roleToField.status, 'status');
   assert.deepEqual(data.result.mapping.completedStatuses, ['done']);
-  assert.equal(data.result.versions.core, '0.3.0-rc.4');
+  assert.equal(data.result.versions.core, '0.3.0-rc.4-mtn.1');
   assert.equal(data.result.versions.model, '0.3.0-rc.5');
   assert.equal(data.result.contracts[0].version, '0.3.0-rc.1');
   assert.equal(data.result.validation.policy, 'warn');
