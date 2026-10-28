@@ -1,6 +1,6 @@
 project: "mtn Agent Task Workflows"
 prd: "prd-agent-task-workflows.md"
-current_phase: 7
+current_phase: 8
 phases:
   - id: 1
     name: "Compatibility baseline, collection diagnostics, and safe initialization"
@@ -35,8 +35,8 @@ phases:
   - id: 7
     name: "Dependencies, readiness, and activity eligibility"
     file: "phase-07-dependencies-and-eligibility.md"
-    status: pending
-    progress: "0/6"
+    status: completed
+    progress: "6/6"
   - id: 8
     name: "Explicit task relocation and failure recovery"
     file: "phase-08-relocation.md"

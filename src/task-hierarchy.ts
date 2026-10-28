@@ -30,7 +30,10 @@ export async function editProject(context: AgentContext, ref: string, operation:
   const matching = (raw: string) => graph.resolve(raw, ref).ref === request.target;
   let next: string[];
   if (operation === "project-add") next = (links as string[]).some(matching) ? links as string[] : [...links as string[], `[[${request.target}]]`];
-  else if (operation === "project-remove") next = (links as string[]).filter(raw => !matching(raw));
+  else if (operation === "project-remove") {
+    if (!(links as string[]).some(matching)) return { ...current, changed: false };
+    next = (links as string[]).filter(raw => !matching(raw));
+  }
   else {
     if (typeof request.replacement !== "string") invalid("Supply the exact replacement path and the existing target link to replace.");
     await context.exact(request.replacement as string, false);

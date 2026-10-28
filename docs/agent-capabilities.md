@@ -222,6 +222,50 @@ conservatively rather than choosing a similar title. Progress is snapshot
 information, not scheduling or ownership. PRD/story references stay ordinary body
 text, preserved by relationship edits.
 
+## Dependencies and eligibility
+
+`agent depends-add REF` accepts `{target,reltype?,gap?}` and stores only mapped
+native blockedBy entries; default relationship is FINISHTOSTART. `depends-remove`
+removes by target identity and is a no-op when absent, including an absent list.
+`depends-replace` requires an explicit native `entries` array. Add preserves an
+existing entry's relationship/gap instead of overwriting it. Creation accepts
+`dependsOn:["exact/task.md"]`; typed native relationship fields pass the same
+validators as dedicated operations. Self-links, duplicates, and new multi-hop
+cycles fail before writing. Pre-existing cycles are reported by queries and
+`agent validate [REF]`; validation failures produce nonzero JSON errors.
+
+`agent dependencies REF`, `agent ready [SCOPE]`, and `agent blocked [SCOPE]` accept
+optional `{activity,scope,includeArchived}` input. They expose nativeBlocked,
+dependencyReady, persisted workflow status, agentEligible, reason codes, observed
+prerequisite statuses, downstream blocking, and snapshot context separately.
+Without an explicit activity policy, queries expose dependency readiness only;
+agentEligible is null, not an implicit claim of builder/reviewer dispatch safety.
+With an activity, the x-mtn-agent-policy status lists determine eligibility.
+External blockers return evidence explanations or a missing-explanation diagnostic.
+Completed/archived tasks are excluded from selection by default. Hierarchy never
+creates a prerequisite. Completing/reopening prerequisites changes derived results
+without editing dependents. Recurring dependencies use base status only.
+
+The optional native specification provider `tasknotes.yaml` supplies its
+`dependencies` object (only); mdbase types/contracts remain authoritative for field
+mapping/status/schema. Missing keys use documented spec defaults, including
+`treat_missing_target_as_blocked:true`. Setting it false can yield native unblocked
+but safe dependency-ineligible for a missing link. Broken/ambiguous links always
+fail closed for agent readiness. Agent relationship writes additionally require
+new targets to resolve and reject duplicate identities even if a permissive native
+policy would preserve them. Existing malformed/broken human records are diagnosed,
+not silently rewritten. Reltype/gap are validated/preserved, not timing enforcement.
+
+Core patch **0.3.0-rc.4-mtn.3** exposes the pinned snapshot LinkResolver/parseLink as
+supported local-fork public APIs and repairs explicit filename wikilink lookup.
+Native blocking uses that resolver's semantics; agent readiness additionally rejects
+ambiguous basename candidates instead of applying native tie-breaks. No private
+collection fields are accessed. Snapshot results are not leases or exclusive claims.
+
+Dependency policy semantics were checked against tasknotes-spec sections 9.11 and
+10.2 (https://github.com/callumalpass/tasknotes-spec). This is automated/spec-level
+compatibility evidence, not a claim that manual Obsidian plugin checks were run.
+
 ## Verification baseline
 
 Before implementation, `npm test` passed 1,041 tests. Type checking exposed existing

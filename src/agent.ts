@@ -7,6 +7,7 @@ import { buildFieldMapping, normalizeTaskTypeDefinition, type FieldMapping } fro
 import { inspectContent } from "./task-content.js";
 import { statusFields } from "./task-lifecycle.js";
 import { validateProjects } from "./task-hierarchy.js";
+import { validateDependencies } from "./task-dependencies.js";
 
 type RecordValue = Record<string, unknown>;
 export class AgentError extends Error {
@@ -105,6 +106,7 @@ export class AgentContext {
     const names = this.collection.getTypesForFile(current.ref, current.frontmatter);
     if (!isDeepStrictEqual(this.collection.getTypesForFile(current.ref, candidate), names)) throw new AgentError("protected_field", "Cannot change task/type identification through generic editing.");
     if (Object.hasOwn(fields, this.mapping.roleToField.projects)) await validateProjects(this, current.ref, candidate[this.mapping.roleToField.projects] ?? [], current.frontmatter[this.mapping.roleToField.projects]);
+    if (Object.hasOwn(fields, this.mapping.roleToField.blockedBy)) await validateDependencies(this, current.ref, candidate[this.mapping.roleToField.blockedBy] ?? [], current.frontmatter[this.mapping.roleToField.blockedBy]);
     this.validateTypes(candidate, names);
     if (isDeepStrictEqual(candidate, current.frontmatter) && body === current.body) return { ...await this.read(current.ref), changed: false };
     coreResult(await this.collection.update({ path: current.ref, fields, body, if_revision: current.revision }));
@@ -121,7 +123,7 @@ export class AgentContext {
     let desiredStatus: unknown;
     const protectedFields = new Set([
       ...this.typeKeys, "blocking", "isBlocking", "isBlocked", "hasSubtasks", "depends_on",
-      ...["blockedBy", "status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
+      ...["status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
     ]);
     for (const type of this.types.values()) {
       for (const [name, field] of Object.entries(type.fields ?? {})) if (field.computed) protectedFields.add(name);

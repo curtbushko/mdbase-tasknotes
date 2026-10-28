@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { LinkResolver, parseLink } from "@callumalpass/mdbase";
 import { AgentError, type AgentContext } from "./agent.js";
 import { normalizeFrontmatter } from "./field-mapping.js";
 
@@ -10,9 +11,14 @@ export interface GraphRecord {
 }
 export type Resolution = { ref: string; error?: never } | { ref?: never; error: "missing_target" | "ambiguous_target"; target: string };
 export class TaskGraph {
-  constructor(public context: AgentContext, public records: Map<string, GraphRecord>) {}
+  private resolver: LinkResolver;
+  private index: ReturnType<LinkResolver["buildIndex"]>;
+  constructor(public context: AgentContext, public records: Map<string, GraphRecord>) {
+    this.resolver = new LinkResolver({ idField: context.settings.id_field, recordExtensions: context.settings.record_extensions });
+    this.index = this.resolver.buildIndex([...records.keys()], records);
+  }
   static async load(context: AgentContext): Promise<TaskGraph> {
-    const result = await context.collection.query({ limit: Number.MAX_SAFE_INTEGER });
+    const result = await context.collection.query({ limit: Number.MAX_SAFE_INTEGER, include_body: true });
     if (result.error) throw new AgentError(result.error.code, result.error.message);
     return new TaskGraph(context, new Map((result.results ?? []).map(item => [item.path, { ...item, body: item.body ?? "" }])));
   }
@@ -27,31 +33,24 @@ export class TaskGraph {
   }
   completed(ref: string): boolean { return this.context.mapping.completedStatuses.includes(String(this.fields(ref).status)); }
 
-  resolve(raw: string, source: string): Resolution {
-    let target = raw.trim();
-    let relative = false;
-    const wiki = target.match(/^\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]$/);
-    const markdown = target.match(/^\[[^\]]*\]\(([^)#]+)(?:#[^)]*)?\)$/);
-    if (wiki) target = wiki[1];
-    else if (markdown) {
-      try { target = decodeURI(markdown[1]); } catch { return { error: "missing_target", target }; }
-      relative = !target.startsWith("/");
+  resolve(raw: string, source: string, conservative = true, taskOnly = false): Resolution {
+    let parsed: ReturnType<typeof parseLink>;
+    try { parsed = parseLink(raw); } catch { return { error: "missing_target", target: raw }; }
+    const target = parsed?.target ?? raw;
+    if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(target) || target.includes("\\")) return { error: "missing_target", target };
+    const candidate = parsed?.format === "markdown" || parsed?.format === "path" || parsed?.is_relative
+      ? posix.normalize(target.startsWith("/") ? target.slice(1) : posix.join(posix.dirname(source), target)) : target;
+    if (candidate === ".." || candidate.startsWith("../")) return { error: "missing_target", target };
+    const simple = (!parsed || parsed.format === "wikilink") && !target.includes("/");
+    if (conservative && simple) {
+      const included = (refs: string[]) => refs.filter(ref => !taskOnly || this.task(ref));
+      const ids = included(this.index.idToFiles.get(target) ?? []);
+      const names = included(this.index.basenameToFiles.get(target) ?? []);
+      if (ids.length > 1 || !ids.length && names.length > 1) return { error: "ambiguous_target", target };
     }
-    if (/^[A-Za-z][A-Za-z\d+.-]*:/.test(target)) return { error: "missing_target", target };
-    if (target.startsWith("./") || target.startsWith("../")) relative = true;
-    if (relative) target = posix.join(posix.dirname(source), target);
-    target = posix.normalize(target.replace(/^\/+/, ""));
-    if (target.startsWith("../") || target === ".." || target.includes("\\") || !target) return { error: "missing_target", target };
-    for (const candidate of [target, `${target}.md`]) if (this.records.has(candidate)) return { ref: candidate };
-    if (!relative && !target.includes("/")) {
-      const identities = [...this.records.values()].filter(item => item.frontmatter[this.context.settings.id_field] === target);
-      if (identities.length === 1) return { ref: identities[0].path };
-      if (identities.length > 1) return { error: "ambiguous_target", target };
-      const matches = [...this.records.keys()].filter(ref => posix.basename(ref) === target || posix.basename(ref, ".md") === target);
-      if (matches.length === 1) return { ref: matches[0] };
-      if (matches.length > 1) return { error: "ambiguous_target", target };
-    }
-    return { error: "missing_target", target };
+    const resolved = this.resolver.resolve(raw, source, [...this.records.keys()], { fileCache: this.records, resolutionIndex: this.index, ...(taskOnly ? { targetType: "task" } : {}) });
+    if (resolved.ambiguous) return { error: "ambiguous_target", target };
+    return resolved.resolved && !resolved.wrongType ? { ref: resolved.resolved } : { error: "missing_target", target };
   }
 
   parents(ref: string): { links: Array<{ raw: string; resolution: Resolution }>; refs: string[] } {

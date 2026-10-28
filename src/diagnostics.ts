@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { selectCollectionPath } from "./config.js";
 import { buildFieldMapping, normalizeTaskTypeDefinition } from "./field-mapping.js";
 import { supportedCreationTemplateValues } from "./create-compat.js";
+import { dependencyPolicy } from "./task-dependencies.js";
 
 export interface DiagnosticIssue {
   code: string;
@@ -81,12 +82,13 @@ export async function diagnoseCollection(flagPath?: string) {
       lifecycleTransitions: true,
       recurringInstanceTransitions: true,
       hierarchy: true,
-      dependencies: false,
+      dependencies: true,
       relocation: false,
       exclusiveClaims: false,
       strictCrossApplicationCas: false,
     },
     agentEligibilityPolicy: taskType.domain?.["x-mtn-agent-policy"] ?? null,
+    dependencyPolicy: await dependencyPolicy(root),
     issues,
   };
 }

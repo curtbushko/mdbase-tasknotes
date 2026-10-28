@@ -3,7 +3,8 @@ import { createAgentTask } from "../agent-create.js";
 import { appendEvidence, describeTask } from "../task-content.js";
 import { transitionInstance, transitionTask } from "../task-lifecycle.js";
 import { editProject, hierarchy, hierarchySnapshot } from "../task-hierarchy.js";
-import { TaskGraph } from "../task-graph.js";
+import { TaskGraph, graphCycles } from "../task-graph.js";
+import { dependencyQuery, DependencySnapshot, editDependency } from "../task-dependencies.js";
 
 export async function agentCommand(operation: string, ref: string | undefined, options: { path?: string; input?: string; json?: boolean }): Promise<void> {
   try {
@@ -14,8 +15,20 @@ export async function agentCommand(operation: string, ref: string | undefined, o
         if (ref) invalid("Creation takes its optional path from the JSON request.");
         return createAgentTask(context, input);
       }
+      if (operation === "validate") {
+        if (ref) await context.exact(ref);
+        const core = await context.collection.validate(ref);
+        const graph = await TaskGraph.load(context);
+        const hierarchyCycles = graphCycles(graph.hierarchyEdges());
+        const dependencies = await DependencySnapshot.load(context);
+        const result = { valid: core.valid && !hierarchyCycles.length && !dependencies.cycles.length, core, hierarchyCycles, dependencyCycles: dependencies.cycles };
+        if (!result.valid) throw new AgentError("validation_failed", "Collection/task validation found errors or graph cycles.", result);
+        return result;
+      }
+      if (["ready", "blocked", "dependencies"].includes(operation)) return dependencyQuery(context, operation, ref, input);
       if (!ref) invalid("Supply an exact task reference.");
-      if (operation === "show") return { ...await context.read(ref), hierarchy: hierarchySnapshot(await TaskGraph.load(context), ref) };
+      if (operation === "show") return { ...await context.read(ref), hierarchy: hierarchySnapshot(await TaskGraph.load(context), ref), dependencies: (await DependencySnapshot.load(context)).evaluate(ref) };
+      if (["depends-add", "depends-remove", "depends-replace"].includes(operation)) return editDependency(context, ref, operation, input);
       if (operation === "hierarchy") return hierarchy(context, ref, input);
       if (["project-add", "project-remove", "project-replace"].includes(operation)) return editProject(context, ref, operation, input);
       if (operation === "patch") return context.patch(ref, input);

@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { AgentContext, AgentError, invalid, record } from "./agent.js";
 import { prepareLiteralCreation } from "./create-compat.js";
 import picomatch from "picomatch";
+import { validateProjects } from "./task-hierarchy.js";
+import { validateDependencies } from "./task-dependencies.js";
 
 export async function textInput(request: Record<string, unknown>, key: string): Promise<string | undefined> {
   const fileKey = `${key}File`;
@@ -80,10 +82,15 @@ export async function createAgentTask(context: AgentContext, input: unknown) {
   const titleField = context.mapping.roleToField.title;
   if (titleField in fields && fields[titleField] !== request.title) invalid("Conflicting title and mapped title field.");
   fields[titleField] = request.title;
-  for (const key of [...context.typeKeys, "blocking", "isBlocked", "isBlocking", "hasSubtasks", "depends_on", "mtnCreateRetry", context.mapping.roleToField.projects, context.mapping.roleToField.blockedBy]) {
+  for (const key of [...context.typeKeys, "blocking", "isBlocked", "isBlocking", "hasSubtasks", "depends_on", "mtnCreateRetry"]) {
     if (key in fields) throw new AgentError("protected_field", `Creation field ${key} requires its semantic operation.`);
   }
   if (context.mapping.completedStatuses.includes(String(fields[context.mapping.roleToField.status]))) throw new AgentError("protected_field", "Create an incomplete task, then use the completion lifecycle operation.");
+  if (request.dependsOn !== undefined) {
+    if (!Array.isArray(request.dependsOn) || !request.dependsOn.every(target => typeof target === "string")) invalid("dependsOn must be a list of exact task references.");
+    if (context.mapping.roleToField.blockedBy in fields) invalid("Do not combine dependsOn with an explicit mapped blockedBy list.");
+    fields[context.mapping.roleToField.blockedBy] = (request.dependsOn as string[]).map(target => ({ uid: `[[${target}]]`, reltype: "FINISHTOSTART" }));
+  }
   const intent = intentHash({ title: request.title, path: request.path ?? null, fields, body });
   if (request.retryKey) {
     const tasks = await context.collection.query({ types: ["task"], limit: Number.MAX_SAFE_INTEGER });
@@ -117,6 +124,8 @@ export async function createAgentTask(context: AgentContext, input: unknown) {
     if (!prepared.path) throw new AgentError("unsupported_capability", prepared.errorMessage ?? "Unsupported naming contract.");
     const ref = prepared.path;
     await safeDestination(context, ref);
+    if (context.mapping.roleToField.projects in prepared.frontmatter) await validateProjects(context, ref, prepared.frontmatter[context.mapping.roleToField.projects], undefined);
+    if (context.mapping.roleToField.blockedBy in prepared.frontmatter) await validateDependencies(context, ref, prepared.frontmatter[context.mapping.roleToField.blockedBy], undefined);
     context.validateTypes(prepared.frontmatter, ["task"]);
     try {
       await access(resolve(context.root, ref));
