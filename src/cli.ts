@@ -20,6 +20,7 @@ import { statsCommand } from "./commands/stats.js";
 import { interactiveCommand } from "./commands/interactive.js";
 import { configCommand } from "./commands/config.js";
 import { skipCommand, unskipCommand } from "./commands/skip.js";
+import { diagnoseCommand } from "./commands/diagnose.js";
 
 const program = new Command();
 const cliVersion = readPackageVersion();
@@ -29,6 +30,12 @@ program
   .description("Standalone CLI for managing markdown tasks via mdbase")
   .version(cliVersion)
   .option("-p, --path <path>", "Path to mdbase collection");
+
+program
+  .command("diagnose")
+  .description("Inspect effective collection configuration and supported capabilities without writing")
+  .option("--json", "Output versioned JSON diagnostics")
+  .action((opts: { json?: boolean }) => diagnoseCommand({ ...opts, path: program.opts().path }));
 
 // Init
 program

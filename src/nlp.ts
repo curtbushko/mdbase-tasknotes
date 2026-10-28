@@ -30,8 +30,8 @@ export async function createParser(flagPath?: string): Promise<NaturalLanguagePa
   const statusConfigs: StatusConfig[] = [];
   const statusField = fields[mapping.roleToField.status];
   const completedSet = new Set(mapping.completedStatuses);
-  if (statusField?.values) {
-    statusField.values.forEach((value: string, index: number) => {
+  if (Array.isArray(statusField?.values)) {
+    statusField.values.filter((value): value is string => typeof value === "string").forEach((value: string, index: number) => {
       const isCompleted = completedSet.has(value);
       statusConfigs.push({
         id: value,
@@ -49,8 +49,8 @@ export async function createParser(flagPath?: string): Promise<NaturalLanguagePa
   // Build PriorityConfig from priority enum values
   const priorityConfigs: PriorityConfig[] = [];
   const priorityField = fields[mapping.roleToField.priority];
-  if (priorityField?.values) {
-    priorityField.values.forEach((value: string, index: number) => {
+  if (Array.isArray(priorityField?.values)) {
+    priorityField.values.filter((value): value is string => typeof value === "string").forEach((value: string, index: number) => {
       priorityConfigs.push({
         id: value,
         value,

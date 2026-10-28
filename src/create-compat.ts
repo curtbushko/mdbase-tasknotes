@@ -289,6 +289,10 @@ function renderTemplate(
   return { path: normalized, missingKeys: [] };
 }
 
+export function supportedCreationTemplateValues(mapping: FieldMapping): string[] {
+  return Object.keys(buildTemplateValues({}, mapping, new Date(0)));
+}
+
 function buildTemplateValues(
   frontmatter: UnknownRecord,
   mapping: FieldMapping,

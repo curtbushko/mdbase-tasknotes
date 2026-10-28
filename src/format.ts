@@ -223,7 +223,7 @@ export function showInfo(msg: string): void {
 }
 
 function getEffectiveStatus(fm: TaskFrontmatter, date = todayString()): string {
-  if (!fm.recurrence) return fm.status;
+  if (!fm.recurrence) return fm.status ?? "";
   const completeInstances = Array.isArray(fm.completeInstances) ? fm.completeInstances : [];
   if (completeInstances.includes(date)) return "done";
   const skippedInstances = Array.isArray(fm.skippedInstances) ? fm.skippedInstances : [];

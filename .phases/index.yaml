@@ -1,0 +1,49 @@
+project: "mtn Agent Task Workflows"
+prd: "prd-agent-task-workflows.md"
+current_phase: 2
+phases:
+  - id: 1
+    name: "Compatibility baseline, collection diagnostics, and safe initialization"
+    file: "phase-01-compatibility-and-diagnostics.md"
+    status: completed
+    progress: "5/5"
+  - id: 2
+    name: "Exact identity, safe mutations, and versioned JSON results"
+    file: "phase-02-identity-and-mutations.md"
+    status: pending
+    progress: "0/5"
+  - id: 3
+    name: "Literal creation, naming, and idempotent retries"
+    file: "phase-03-literal-creation.md"
+    status: pending
+    progress: "0/5"
+  - id: 4
+    name: "Markdown specifications, evidence, and resumable context"
+    file: "phase-04-content-and-evidence.md"
+    status: pending
+    progress: "0/5"
+  - id: 5
+    name: "Shared lifecycle and typed status transitions"
+    file: "phase-05-lifecycle.md"
+    status: pending
+    progress: "0/5"
+  - id: 6
+    name: "Native project hierarchy and deduplicated leaf progress"
+    file: "phase-06-hierarchy.md"
+    status: pending
+    progress: "0/5"
+  - id: 7
+    name: "Dependencies, readiness, and activity eligibility"
+    file: "phase-07-dependencies-and-eligibility.md"
+    status: pending
+    progress: "0/6"
+  - id: 8
+    name: "Explicit task relocation and failure recovery"
+    file: "phase-08-relocation.md"
+    status: pending
+    progress: "0/5"
+  - id: 9
+    name: "End-to-end workflows, interoperability, and release verification"
+    file: "phase-09-release-verification.md"
+    status: pending
+    progress: "0/5"

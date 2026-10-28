@@ -48,13 +48,20 @@ export function resolveUserPath(userPath: string): string {
   return path.resolve(expandHomeDirectory(userPath));
 }
 
-export function resolveCollectionPath(flagPath?: string): string {
-  if (flagPath) return resolveUserPath(flagPath);
+export function selectCollectionPath(flagPath?: string): {
+  root: string;
+  selectionSource: "--path" | "MDBASE_TASKNOTES_PATH" | "collectionPath" | "cwd";
+} {
+  if (flagPath) return { root: resolveUserPath(flagPath), selectionSource: "--path" };
   const envPath = process.env.MDBASE_TASKNOTES_PATH;
-  if (envPath) return resolveUserPath(envPath);
+  if (envPath) return { root: resolveUserPath(envPath), selectionSource: "MDBASE_TASKNOTES_PATH" };
   const config = load();
-  if (config.collectionPath) return resolveUserPath(config.collectionPath);
-  return process.cwd();
+  if (config.collectionPath) return { root: resolveUserPath(config.collectionPath), selectionSource: "collectionPath" };
+  return { root: process.cwd(), selectionSource: "cwd" };
+}
+
+export function resolveCollectionPath(flagPath?: string): string {
+  return selectCollectionPath(flagPath).root;
 }
 
 function expandHomeDirectory(userPath: string): string {

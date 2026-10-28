@@ -1,6 +1,6 @@
 export interface TaskFrontmatter {
-  title: string;
-  status: string;
+  title?: string;
+  status?: string;
   priority?: string;
   due?: string;
   scheduled?: string;
@@ -13,7 +13,7 @@ export interface TaskFrontmatter {
   completeInstances?: string[];
   skippedInstances?: string[];
   completedDate?: string;
-  dateCreated: string;
+  dateCreated?: string;
   dateModified?: string;
   timeEntries?: TimeEntry[];
   [key: string]: unknown;

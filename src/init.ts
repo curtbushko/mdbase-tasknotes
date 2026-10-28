@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { buildTaskNotesMdbaseResources } from "@tasknotes/model/mdbase";
+import { DEFAULT_FIELD_MAPPING } from "@tasknotes/model/mapping";
 import { resolveUserPath } from "./config.js";
 
 export interface InitOptions {
@@ -36,6 +37,7 @@ function buildInitResources(opts: InitOptions = {}) {
       name: "TaskNotes",
       description: "Task collection managed by mdbase-tasknotes",
       validation: "warn",
+      exclude: ["_types", "_contracts", "_schemas", ".git", "node_modules", ".mdbase", ".mtn", ".mtn-recovery", ".mtn-tmp"],
     },
     path: {
       template: "{{title}}",
@@ -47,6 +49,7 @@ function buildInitResources(opts: InitOptions = {}) {
     },
     modelConfig: {
       fieldMapping: {
+        ...DEFAULT_FIELD_MAPPING,
         recurrenceAnchor: "recurrenceAnchor",
         recurrenceParent: "recurrenceParent",
         occurrenceDate: "occurrenceDate",
@@ -84,6 +87,7 @@ function buildInitResources(opts: InitOptions = {}) {
         weight,
       })),
       defaults: {
+        taskTag: "task",
         status: o.defaultStatus,
         priority: o.defaultPriority,
       },

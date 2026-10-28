@@ -102,12 +102,12 @@ function freezeNow<T>(isoString: unknown, fn: () => Promise<T>): Promise<T> {
   const fixed = new RealDate(isoString);
 
   class MockDate extends RealDate {
-    constructor(...args: ConstructorParameters<typeof Date>) {
+    constructor(...args: unknown[]) {
       if (args.length === 0) {
         super(fixed.getTime());
         return;
       }
-      super(...args);
+      super(...args as ConstructorParameters<typeof Date>);
     }
 
     static now() {
@@ -115,7 +115,7 @@ function freezeNow<T>(isoString: unknown, fn: () => Promise<T>): Promise<T> {
     }
   }
 
-  (globalThis as unknown as { Date: DateConstructor }).Date = MockDate;
+  (globalThis as unknown as { Date: DateConstructor }).Date = MockDate as unknown as DateConstructor;
   return fn().finally(() => {
     (globalThis as unknown as { Date: DateConstructor }).Date = RealDate;
   });
