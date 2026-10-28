@@ -1,5 +1,6 @@
 import { Collection, DataContractRegistry, loadConfig, loadTypes, validateJsonSchemaFrontmatter, type TypeDefinition, type MdbaseSettings } from "@callumalpass/mdbase";
 import { readFile, realpath } from "node:fs/promises";
+import { TASKNOTES_SPEC_VERSION } from "@tasknotes/model/types";
 import { isAbsolute, relative, resolve, posix } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { resolveCollectionPath } from "./config.js";
@@ -30,6 +31,8 @@ export async function withAgent<T>(flagPath: string | undefined, run: (context: 
   const config = configResult.config;
   const loaded = await loadTypes(root, config);
   if (!loaded.valid || !loaded.types?.has("task")) throw new AgentError("configuration_error", loaded.error?.message ?? "Missing task type.");
+  const taskContracts = loaded.types.get("task")?.implements?.filter(item => item.contract === "tasknotes.task") ?? [];
+  if (taskContracts.some(item => item.version !== TASKNOTES_SPEC_VERSION)) throw new AgentError("unsupported_capability", `This build supports tasknotes.task ${TASKNOTES_SPEC_VERSION}; diagnose the declared contract before mutating it.`);
   const registry = await DataContractRegistry.load(root, config, loaded.types);
   if (!registry.valid || !registry.registry) throw new AgentError("configuration_error", registry.error?.message ?? "Invalid contracts.");
   // This stricter per-operation policy is in memory only, never saved to the collection.
@@ -125,7 +128,7 @@ export class AgentContext {
     let statusTouched = false;
     let desiredStatus: unknown;
     const protectedFields = new Set([
-      ...this.typeKeys, "blocking", "isBlocking", "isBlocked", "hasSubtasks", "depends_on",
+      ...this.typeKeys, "blocking", "isBlocking", "isBlocked", "hasSubtasks", "depends_on", "dependsOn", "depends-on", "mtnCreateRetry",
       ...["status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
     ]);
     for (const type of this.types.values()) {

@@ -12,13 +12,14 @@ export async function diagnoseCommand(options: { path?: string; json?: boolean }
       console.log(`Task type: ${result.locations.taskType}`);
       console.log(`Versions: mdbase ${result.versions.core}; model ${result.versions.model}; collection ${result.versions.spec}`);
       console.log(`Field mappings: ${JSON.stringify(result.mapping.roleToField)}`);
-      console.log(`Completed statuses: ${result.mapping.completedStatuses.join(", ")}`);
+      console.log(`Status semantics: ${JSON.stringify(result.status)}`);
       console.log(`Validation: ${result.validation.policy}; strict: ${result.validation.strict}`);
       console.log(`Exclusions: ${result.exclusions.join(", ")}`);
       console.log(`Path contract: ${JSON.stringify(result.path)}`);
       console.log(`Contracts: ${JSON.stringify(result.contracts)}`);
       console.log(`Capabilities: ${JSON.stringify(result.capabilities)}`);
       console.log(`Agent eligibility policy: ${JSON.stringify(result.agentEligibilityPolicy)}`);
+      console.log(`Dependency policy: ${JSON.stringify(result.dependencyPolicy)}`);
       for (const issue of result.issues) console.error(`Warning [${issue.code}]: ${issue.message}`);
     }
   } catch (error) {

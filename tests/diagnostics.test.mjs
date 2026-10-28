@@ -28,7 +28,7 @@ test('diagnostics is read-only and reports effective current contract and capabi
   assert.equal(data.result.selectionSource, '--path');
   assert.equal(data.result.mapping.roleToField.status, 'status');
   assert.deepEqual(data.result.mapping.completedStatuses, ['done']);
-  assert.equal(data.result.versions.core, '0.3.0-rc.4-mtn.6');
+  assert.equal(data.result.versions.core, '0.3.0-rc.4-mtn.7');
   assert.equal(data.result.versions.model, '0.3.0-rc.5');
   assert.equal(data.result.contracts[0].version, '0.3.0-rc.1');
   assert.equal(data.result.validation.policy, 'warn');
@@ -80,6 +80,13 @@ test('init rerun refuses to alter config/custom schema and excludes operational 
   for (const folder of ['.mdbase', '.mtn', '.mtn-recovery', '.mtn-tmp', '_schemas', '_contracts']) {
     assert.ok(config.settings.exclude.includes(folder), folder);
   }
+  config.name = 'Owner-customized collection';
+  writeFileSync(join(root, 'mdbase.yaml'), YAML.stringify(config));
+  const typePath = join(root, '_types/task.md');
+  const customType = YAML.parse(readFileSync(typePath, 'utf8').match(/^---\n([\s\S]*?)\n---/)[1]);
+  customType.schema.value.properties.ownerData = { type: 'object' };
+  customType['x-owner-setting'] = { keep: true };
+  writeFileSync(typePath, `---\n${YAML.stringify(customType)}---\n`);
   const before = snapshot(root);
   const retry = runCli(['init', root]);
   assert.notEqual(retry.status, 0);

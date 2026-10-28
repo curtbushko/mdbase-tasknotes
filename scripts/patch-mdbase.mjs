@@ -48,7 +48,12 @@ const DEFAULT_SPEC_VERSION =`);
   const parser = readFileSync(parserFile, 'utf8');
   const delimiter = String.raw`afterFirst.match(/^---\s*$/m)`;
   if (!parser.includes(delimiter)) throw new Error('Pinned parser changed: review delimiter patch.');
-  writeFileSync(parserFile, parser.replace(delimiter, String.raw`afterFirst.match(/^---[ \t]*\r?$/m)`));
+  const serializerReturn = '    return result;\n}\nfunction filterFrontmatter';
+  if (!parser.includes(serializerReturn)) throw new Error('Pinned serializer changed.');
+  writeFileSync(parserFile, parser.replace(delimiter, String.raw`afterFirst.match(/^---[ \t]*\r?$/m)`).replace(serializerReturn, String.raw`    // Keep literal body termination instead of gray-matter's forced final LF.
+    return body.length && !body.endsWith("\n") ? result.replace(/\n$/, "") : result;
+}
+function filterFrontmatter`));
   // Expose the pinned snapshot link resolver/parser as supported local-fork APIs.
   for (const extension of ['js', 'd.ts']) {
     const index = join(temp, `package/dist/index.${extension}`);
@@ -81,7 +86,7 @@ ${resolverNeedle}`);
   writeFileSync(resolverFile, resolver);
   const manifest = join(temp, 'package/package.json');
   const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
-  pkg.version = '0.3.0-rc.4-mtn.6';
+  pkg.version = '0.3.0-rc.4-mtn.7';
   writeFileSync(manifest, JSON.stringify(pkg, null, 2) + '\n');
   execFileSync('npm', ['pack', join(temp, 'package'), '--pack-destination', resolve('vendor')], { stdio: 'inherit' });
 } finally {

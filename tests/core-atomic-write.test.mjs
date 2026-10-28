@@ -31,6 +31,21 @@ test('core patched update never opens the original record for truncating writes'
   });
 });
 
+test('core reports a simulated external-editor conflict and preserves the newer content', async () => {
+  await fixture(async (collection, target) => {
+    collection.preWriteHook = () => {
+      fs.appendFileSync(target, 'Newer human edit\n');
+      const future = new Date(Date.now() + 2000);
+      fs.utimesSync(target, future, future);
+    };
+    const result = await collection.update({ path: 'tasks/a.md', fields: { priority: 'high' } });
+    assert.equal(result.error?.code, 'concurrent_modification');
+    const observed = fs.readFileSync(target, 'utf8');
+    assert.match(observed, /Newer human edit/);
+    assert.doesNotMatch(observed, /priority: high/);
+  });
+});
+
 test('failed atomic publication leaves original task and no temporary records', async () => {
   await fixture(async (collection, target, root) => {
     const before = fs.readFileSync(target, 'utf8');

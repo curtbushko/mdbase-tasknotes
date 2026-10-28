@@ -129,4 +129,11 @@ test('activity policies distinguish review waits from dependency readiness and e
   const external = invoke(root, 'dependencies', 'tasks/b.md', { activity: 'build' });
   assert.ok(external.data.result.reasons.some(reason => reason.code === 'external_blocker'));
   assert.equal(external.data.result.blockerExplanation, 'Need credentials');
+  const manual = join(root, 'tasks/c.md');
+  writeFileSync(manual, readFileSync(manual, 'utf8').replace('status: open', 'status: cancelled'));
+  const before = readFileSync(manual, 'utf8');
+  const unexplained = invoke(root, 'dependencies', 'tasks/c.md', { activity: 'build' });
+  assert.equal(unexplained.status, 0, unexplained.stdout);
+  assert.ok(unexplained.data.result.reasons.some(reason => reason.code === 'missing_blocker_explanation'));
+  assert.equal(readFileSync(manual, 'utf8'), before);
 });

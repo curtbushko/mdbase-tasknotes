@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import YAML from 'yaml';
 import { format } from 'date-fns';
@@ -21,7 +21,7 @@ function create(root, request) {
 test('literal creation round-trips multiline specs, explicit typed fields, and shell-sensitive titles without NLP', () => {
   const root = setup();
   const descriptionFile = join(makeTempDir(), 'spec.md');
-  const body = '\n\n# Scope 🧪\n\nhttps://example.com/#tag\n```sh\necho "$HOME"\n```\n';
+  const body = '\n\n# Scope 🧪\n\nhttps://example.com/#tag\n```sh\necho "$HOME"\n```';
   writeFileSync(descriptionFile, body);
   const result = create(root, { title: 'tomorrow #urgent @home +phase https://example.com', path: 'tasks/literal.md', descriptionFile,
     fields: { priority: 'high', contexts: ['agent'], customTyped: { enabled: true, items: [{ n: 1 }] } } });
@@ -95,6 +95,24 @@ test('timestamp naming allocates distinct conforming paths on collisions without
   }
   assert.equal(refs.size, 3);
   for (const ref of occupied) assert.equal(readFileSync(join(root, ref), 'utf8'), 'Do not overwrite');
+});
+
+test('timestamp allocation retries a concurrent no-clobber publication conflict', () => {
+  const root = setup();
+  const typePath = join(root, '_types/task.md');
+  writeFileSync(typePath, readFileSync(typePath, 'utf8').replace('template: "{{title}}"', 'template: "{{timestamp}}"'));
+  const input = join(makeTempDir(), 'request.json');
+  writeFileSync(input, JSON.stringify({ title: 'Concurrent creation' }));
+  const result = runCli(['--path', root, 'agent', 'create', '--input', input, '--json'], { env: {
+    NODE_OPTIONS: `--import=${new URL('./fixtures/race-create-publication.mjs', import.meta.url).href}`,
+    MTN_TEST_RACE_DIRECTORY: join(root, 'tasks'),
+  } });
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const ref = JSON.parse(result.stdout).result.ref;
+  const notes = readdirSync(join(root, 'tasks')).filter(path => path.endsWith('.md'));
+  assert.equal(notes.length, 2);
+  const other = notes.find(path => `tasks/${path}` !== ref);
+  assert.equal(readFileSync(join(root, 'tasks', other), 'utf8'), 'Owner concurrent note\n');
 });
 
 test('strict schemas explicitly diagnose unsupported retry metadata', () => {

@@ -40,7 +40,7 @@ program
 
 program
   .command("agent <operation> [ref]")
-  .description("Exact-reference automation (create, show, patch); structured JSON input, no NLP")
+  .description("Exact-reference automation: create/show/patch, describe/note, lifecycle, hierarchy, dependencies, readiness, validation, and move-plan/move-apply")
   .option("--input <file>", "JSON request file, or - for stdin")
   .option("--json", "Output version 1 JSON success/error envelope")
   .action((operation: string, ref: string | undefined, opts: { input?: string; json?: boolean }) =>
@@ -291,7 +291,14 @@ function readPackageVersion(): string {
 
 // Keep the existing command output contracts; the explicit agent JSON surface also
 // envelopes Commander argument/option failures rather than leaking decorated text.
-const agentJsonMode = process.argv.includes("agent") && process.argv.includes("--json");
+const argumentsWithoutRuntime = process.argv.slice(2);
+let selectedCommand: string | undefined;
+for (let index = 0; index < argumentsWithoutRuntime.length; index++) {
+  const argument = argumentsWithoutRuntime[index];
+  if (argument === "--path" || argument === "-p") { index++; continue; }
+  if (!argument.startsWith("-")) { selectedCommand = argument; break; }
+}
+const agentJsonMode = ["agent", "diagnose"].includes(selectedCommand ?? "") && argumentsWithoutRuntime.includes("--json");
 if (agentJsonMode) {
   program.configureOutput({ writeErr: () => {} });
   program.exitOverride();

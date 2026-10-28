@@ -2,7 +2,7 @@ import { buildTaskPropertyUpdatePlan, specFrontmatterToTaskInfo, buildRecurringT
 import { DEFAULT_FIELD_MAPPING } from "@tasknotes/model/mapping";
 import { AgentError, invalid, record, type AgentContext } from "./agent.js";
 import { normalizeFrontmatter, normalizeTaskTypeDefinition, denormalizeFrontmatter } from "./field-mapping.js";
-import { getCurrentDateString, parseDateToLocal, validateDateString } from "./date.js";
+import { getCurrentDateString, parseDateToUTC, validateDateString } from "./date.js";
 import { planEvidenceBody } from "./task-content.js";
 
 type Fields = Record<string, unknown>;
@@ -17,7 +17,14 @@ export function agentPolicy(context: AgentContext): Record<string, unknown> | nu
   const policy = context.types.get("task")?.domain?.["x-mtn-agent-policy"];
   if (policy === undefined) return null;
   if (!policy || typeof policy !== "object" || Array.isArray(policy)) throw new AgentError("configuration_error", "x-mtn-agent-policy must be an object.");
-  return policy as Fields;
+  const value = policy as Fields;
+  const configured = configuredStatuses(context).values;
+  if (value.activities !== undefined && (!value.activities || typeof value.activities !== "object" || Array.isArray(value.activities))) throw new AgentError("configuration_error", "Agent activities policy must be an object.");
+  for (const list of Object.values(value.activities ?? {})) {
+    if (!Array.isArray(list) || list.some(item => typeof item !== "string" || !configured.includes(item))) throw new AgentError("configuration_error", "Agent activity policy must list configured statuses.");
+  }
+  if (value.blockedStatuses !== undefined && (!Array.isArray(value.blockedStatuses) || value.blockedStatuses.some(item => typeof item !== "string" || !configured.includes(item)))) throw new AgentError("configuration_error", "blockedStatuses must list configured statuses.");
+  return value;
 }
 
 export async function statusFields(context: AgentContext, current: { ref: string; frontmatter: Fields; effectiveFrontmatter: Fields; body: string }, status: unknown, request: Fields) {
@@ -78,7 +85,7 @@ export async function transitionInstance(context: AgentContext, ref: string, ope
     || operation === "skip-instance" && skipped.includes(date!) || operation === "unskip-instance" && !skipped.includes(date!)) return { ...current, changed: false };
   let fields: Fields;
   if (completing || reopening) {
-    const plan = buildRecurringTaskCompletePlan({ freshTask: specFrontmatterToTaskInfo(fm, ref), targetDate: parseDateToLocal(date!), currentTimestamp: new Date().toISOString(), maintainDueDateOffsetInRecurring: true });
+    const plan = buildRecurringTaskCompletePlan({ freshTask: specFrontmatterToTaskInfo(fm, ref), targetDate: parseDateToUTC(date!), currentTimestamp: new Date().toISOString(), maintainDueDateOffsetInRecurring: true });
     fields = Object.fromEntries(recurringCompletePlanToFrontmatterPatch(plan, { ...DEFAULT_FIELD_MAPPING, ...context.mapping.roleToField }).map(op => [op.field, op.op === "set" ? op.value : undefined]));
   } else {
     const plan = buildSpecRecurringSkipUpdate({ frontmatter: fm, targetDate: date!, skip: operation === "skip-instance", currentTimestamp: new Date().toISOString(), path: ref });

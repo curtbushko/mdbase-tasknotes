@@ -50,6 +50,7 @@ test('agent typed patch preserves observed edits/body and treats retries as no-o
     { op: 'set', field: 'contexts', value: ['one'] },
     { op: 'add', field: 'contexts', value: 'two' },
     { op: 'set', field: 'timeEstimate', value: 15 },
+    { op: 'set', field: 'customNullable', value: null },
     { op: 'set', field: 'customNested', value: { enabled: true, items: [{ n: 3 }] } },
   ] };
   const patched = agent(root, 'patch', 'tasks/a.md', input);
@@ -58,6 +59,7 @@ test('agent typed patch preserves observed edits/body and treats retries as no-o
   assert.equal(patched.data.result.frontmatter.customNested.enabled, true);
   assert.equal(patched.data.result.frontmatter.customHuman, 'keep');
   assert.equal(patched.data.result.frontmatter.customNull, null);
+  assert.equal(patched.data.result.frontmatter.customNullable, null);
   assert.match(patched.data.result.body, /Edited by human/);
   const beforeRetry = readFileSync(path, 'utf8');
   const retry = agent(root, 'patch', 'tasks/a.md', { operations: [{ op: 'set', field: 'timeEstimate', value: 15 }] });
@@ -75,11 +77,14 @@ test('agent fails closed on invalid typed writes and reserved semantic fields', 
   for (const operation of [
     { op: 'set', field: 'timeEstimate', value: '15' },
     { op: 'unset', field: 'status' },
+    { op: 'unset', field: 'title' },
     { op: 'set', field: 'status', value: 'not-configured' },
     { op: 'set', field: 'projects', value: ['[[tasks/a]]'] },
     { op: 'set', field: 'blockedBy', value: [{ uid: '[[tasks/a]]', reltype: 'FINISHTOSTART' }] },
     { op: 'set', field: 'blocking', value: ['tasks/b.md'] },
     { op: 'set', field: 'type', value: 'other' },
+    { op: 'set', field: 'mtnCreateRetry', value: { key: 'corrupt', intent: 'other' } },
+    { op: 'set', field: 'dependsOn', value: ['tasks/b.md'] },
   ]) {
     const before = readFileSync(file, 'utf8');
     const result = agent(root, 'patch', 'tasks/a.md', { operations: [operation] });

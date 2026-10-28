@@ -5,7 +5,7 @@ import { parseLink } from "@callumalpass/mdbase";
 import { AgentError, invalid, record, type AgentContext } from "./agent.js";
 import { TaskGraph, graphCycles, reaches } from "./task-graph.js";
 import { hierarchySnapshot } from "./task-hierarchy.js";
-import { agentPolicy, configuredStatuses } from "./task-lifecycle.js";
+import { agentPolicy } from "./task-lifecycle.js";
 import { inspectContent } from "./task-content.js";
 
 const RELTYPES = new Set(["FINISHTOSTART", "STARTTOSTART", "FINISHTOFINISH", "STARTTOFINISH"]);
@@ -156,12 +156,6 @@ export class DependencySnapshot {
     const policy = agentPolicy(context);
     const status = graph.fields(ref).status;
     const activities = policy?.activities;
-    const configured = configuredStatuses(context).values;
-    if (activities !== undefined && (!activities || typeof activities !== "object" || Array.isArray(activities))) throw new AgentError("configuration_error", "Agent activities policy must be an object.");
-    for (const list of Object.values(activities ?? {})) {
-      if (!Array.isArray(list) || list.some(value => typeof value !== "string" || !configured.includes(value))) throw new AgentError("configuration_error", "Agent activity policy must list configured status values.");
-    }
-    if (policy?.blockedStatuses !== undefined && (!Array.isArray(policy.blockedStatuses) || policy.blockedStatuses.some(value => typeof value !== "string" || !configured.includes(value)))) throw new AgentError("configuration_error", "blockedStatuses must list configured statuses.");
     const runnable = activity && activities ? (activities as Fields)[activity] : undefined;
     let agentEligible: boolean | null = activity && Array.isArray(runnable) ? dependencyReady : null;
     if (activity && !Array.isArray(runnable)) reasons.push({ code: "eligibility_policy_unconfigured", message: `No inspectable runnable-status policy for activity ${activity}.` });

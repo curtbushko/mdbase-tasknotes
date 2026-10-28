@@ -28,19 +28,22 @@
     "dist",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "docs",
+    "vendor/callumalpass-mdbase-0.3.0-rc.4-mtn.7.tgz"
   ],
+  "bundleDependencies": ["@callumalpass/mdbase"],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "start": "node dist/cli.js",
     "test": "npm run build && node --test \"tests/**/*.test.mjs\"",
-    "test:tz-parity": "npm run build && ./scripts/test-tz-parity.sh",
+    "test:tz-parity": "npm run build && ./scripts/test-tz-parity.sh && node scripts/test-agent-tz-parity.mjs",
     "test:package": "npm run build && node scripts/smoke-package.mjs",
     "prepublishOnly": "tsup"
   },
   "dependencies": {
-    "@callumalpass/mdbase": "file:vendor/callumalpass-mdbase-0.3.0-rc.4-mtn.6.tgz",
+    "@callumalpass/mdbase": "file:vendor/callumalpass-mdbase-0.3.0-rc.4-mtn.7.tgz",
     "@tasknotes/model": "0.3.0-rc.5",
     "chalk": "^4.1.2",
     "commander": "^12.1.0",

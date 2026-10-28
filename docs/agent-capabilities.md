@@ -1,5 +1,8 @@
 # Agent workflow support
 
+See [verification and remaining owner checks](agent-verification.md) for test
+coverage, manual-integration limits, and the inherited dependency audit advisory.
+
 ## Baseline and contracts
 
 The implementation baseline is mtn 0.2.0-rc.1, mdbase 0.3.0-rc.4, and
@@ -14,15 +17,15 @@ fields/path_pattern and current JSON Schema/collection.path are not interchangea
 | Exact record read | Collection.read | `agent show REF --json` |
 | Validation | validateJsonSchemaFrontmatter; strict in-memory Collection policy | `agent patch REF --input FILE --json` |
 | File writes | Patched Collection.create/update with atomic publication | Agent typed patch and existing interactive commands |
-| Naming | path_pattern; collection.path.pattern; TaskNotes runtime template compatibility adapter | Existing capture; literal/collision policy planned |
-| Lifecycle | Model operations and core lifecycle actions | Existing completion/recurrence; unified agent transitions planned |
+| Naming | path_pattern; collection.path.pattern; TaskNotes runtime template compatibility adapter | Literal/explicit paths and bounded collision allocation |
+| Lifecycle | Model operations and core lifecycle actions | Shared agent transitions and explicit instance operations |
 | References | Local-fork planRecordRename / moveRecordNoClobber / atomicWriteRecord | `agent move-plan` / `move-apply`, with journal |
-| Hierarchy/dependencies/content | Native projects, blockedBy, Markdown | Agent operations planned phases 4/6/7 |
+| Hierarchy/dependencies/content | Native projects, blockedBy, Markdown | Implemented `agent` operations; see sections below |
 | Claims/strict cross-application CAS | Not promised | Not supported |
 
-Presence of a core method does not certify all required behavior. In particular,
-nested blockedBy.uid reference repair and partial-move recovery need behavioral
-characterization before relocation can be advertised. Existing create compatibility
+Presence of an original core method did not certify all required behavior. Nested
+blockedBy.uid reference repair and partial-move recovery required the local-fork
+contributions and behavioral tests described below. Existing create compatibility
 code accesses a private type map; the new agent surface must use public loaders.
 
 ## Read-only diagnostics
@@ -42,8 +45,8 @@ and operation capabilities. Human warnings are persistent text on stderr, not
 color-only signals. Warnings do not change configuration.
 
 Native workflow status, native dependency blocking, and eventual activity-specific
-agent eligibility are separate concepts. Until a policy and eligibility operations
-are implemented, diagnostics reports no agent eligibility policy. Do not infer
+agent eligibility are separate concepts. Diagnostics reports the configured agent eligibility policy, or null when none
+is configured. Do not infer
 completion or dispatch semantics from English status names.
 
 ## Safe initialization and exclusions
@@ -65,8 +68,7 @@ recovery copies elsewhere in task-discovery scope.
 The default installation is a fixed inbox: collection.path.folder is `tasks` and
 the TaskNotes template is `{{title}}`. It needs no Obsidian runtime. Templates
 requiring `projectFolder` are unsupported: configure a fixed folder and supported
-template in the authoritative settings/export, or supply an explicit path once
-that agent operation is available. Project membership does not route files.
+template in the authoritative settings/export, or supply an explicit agent creation path. Project membership does not route files.
 
 ## Exact automation and typed updates
 
@@ -84,8 +86,8 @@ frontmatter, full body, exact reference, and the core revision when available.
 `--input -` reads JSON from stdin. Values are explicit JSON, never guessed from
 unquoted strings. Fields are actual mapped frontmatter keys. Unknown fields must
 be schema-permitted; required fields and task identification cannot be removed.
-Relationship/lifecycle fields are protected until their semantic handlers exist;
-derived blocking/projection fields are never writable. Identical patches return
+Mapped relationship/lifecycle fields use shared semantic handlers; derived
+blocking/projection fields and retry identities are not directly writable. Identical patches return
 `changed:false` without refreshing timestamps. Mutations load current content,
 validate constraints even with collection warning/off policy, pass the observed
 revision to core, preserve unrelated observed changes, and close resources before
@@ -101,8 +103,8 @@ record create/update/batch-write publication with same-directory exclusive temp
 files, file sync, and atomic rename (or no-clobber link publication on creation).
 Failed publication preserves the original and removes temporary files; non-Markdown
 temp names cannot be discovered as tasks. Tests inject publication failure and
-forbid direct truncating writes. Rename/reference repair writes are not certified
-by this patch and remain phase 8 work. This is not a multi-record transaction,
+forbid direct truncating writes. That initial patch did not certify rename/reference
+repair; the later move-plan APIs described below supply that separate capability. This is not a multi-record transaction,
 an exclusive task claim, or a strict cross-application CAS guarantee; core revision
 and mtime checks still have a small check-to-publication race.
 
@@ -119,7 +121,7 @@ contract. `descriptionFile` reads UTF-8 (or `-` for stdin), mutually exclusive w
 `description`. The entire JSON request can also arrive on stdin via `--input -`;
 it cannot simultaneously consume a second content stream from that same stdin.
 No title/body NLP is invoked. Structured `fields` use actual mapped keys and
-schema-permitted native JSON values. Relationships require semantic operations.
+schema-permitted native JSON values. Relationship values pass shared semantic validators.
 
 An occupied explicit path fails. Generated second-granularity timestamp/time/
 second/unix/zettel profiles try at most 60 consecutive second offsets, preserving
@@ -302,14 +304,38 @@ explicitly mark the journal status recovered. Keep the journal/backups and gener
 a new plan. No command automatically overwrites newer edits or discards failed
 recovery data. Injected mid-move failure is covered by automated regressions.
 
-The active dependency contribution is **0.3.0-rc.4-mtn.6**. In addition to previous
+The active dependency contribution is **0.3.0-rc.4-mtn.7**. In addition to previous
 patches, it exposes pure reference planning, explicit no-clobber moves, atomic
 publication, and serialization as supported public APIs; corrects percent-encoded
 Markdown target resolution; and provides explicit unset fields without converting
 unset to null. Agent writes preserve permitted nulls and empty lists in memory
-without rewriting collection settings. This closes a semantic-preservation gap in
-the original writer's omit-null behavior. Source is reproducible using
+without rewriting collection settings. Literal body termination is also preserved
+rather than silently adding a final newline. These close semantic-preservation
+gaps in the original writer. Source is reproducible using
 scripts/patch-mdbase.mjs and scripts/mdbase-relocation.{js,d.ts}.
+
+## Packaged operation and quality gates
+
+The npm artifact bundles the locally patched core and includes its archive and
+these command/verification documents. Isolated package smoke copies the artifact
+away from the source tree, installs it, and executes diagnostics, creation/retry,
+evidence, lifecycle, move, and legacy capture/list commands. It does not depend on
+a vendor directory next to the source checkout.
+
+Run `npm test`, `npx tsc --noEmit`, `npm run test:tz-parity`, and
+`npm run test:package`; the available `task check` runs the test, timezone, and
+package gates sequentially. There is no lint script in the existing package.
+Timezone checks include explicit non-recurring dates and recurring instance
+lifecycle behavior in UTC, Los Angeles, Berlin, and Tokyo. The latter exposed and
+fixed a local-midnight-to-UTC day shift. Generated timestamp identities are
+allocated before hierarchy/dependency self-edge checks, including publication
+races; existing notes are not overwritten.
+
+Generic editing cannot rewrite retry identity metadata or persist depends-on
+aliases as a competing graph. Native relationship and lifecycle fields use their
+shared semantic handlers. Declared TaskNotes contract versions other than the
+pinned supported version are diagnosed and refused instead of silently applying
+older transition semantics.
 
 ## Verification baseline
 

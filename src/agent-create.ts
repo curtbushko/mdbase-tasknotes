@@ -82,7 +82,7 @@ export async function createAgentTask(context: AgentContext, input: unknown) {
   const titleField = context.mapping.roleToField.title;
   if (titleField in fields && fields[titleField] !== request.title) invalid("Conflicting title and mapped title field.");
   fields[titleField] = request.title;
-  for (const key of [...context.typeKeys, "blocking", "isBlocked", "isBlocking", "hasSubtasks", "depends_on", "mtnCreateRetry"]) {
+  for (const key of [...context.typeKeys, "blocking", "isBlocked", "isBlocking", "hasSubtasks", "depends_on", "dependsOn", "depends-on", "mtnCreateRetry"]) {
     if (key in fields) throw new AgentError("protected_field", `Creation field ${key} requires its semantic operation.`);
   }
   if (context.mapping.completedStatuses.includes(String(fields[context.mapping.roleToField.status]))) throw new AgentError("protected_field", "Create an incomplete task, then use the completion lifecycle operation.");
@@ -124,9 +124,6 @@ export async function createAgentTask(context: AgentContext, input: unknown) {
     if (!prepared.path) throw new AgentError("unsupported_capability", prepared.errorMessage ?? "Unsupported naming contract.");
     const ref = prepared.path;
     await safeDestination(context, ref);
-    if (context.mapping.roleToField.projects in prepared.frontmatter) await validateProjects(context, ref, prepared.frontmatter[context.mapping.roleToField.projects], undefined);
-    if (context.mapping.roleToField.blockedBy in prepared.frontmatter) await validateDependencies(context, ref, prepared.frontmatter[context.mapping.roleToField.blockedBy], undefined);
-    context.validateTypes(prepared.frontmatter, ["task"]);
     try {
       await access(resolve(context.root, ref));
       if (attempt + 1 < attempts) continue;
@@ -134,7 +131,19 @@ export async function createAgentTask(context: AgentContext, input: unknown) {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
-    const result = await context.collection.create({ type: "task", path: ref, frontmatter: prepared.frontmatter, body });
+    // Allocate a free identity before graph checks: an occupied timestamp may be
+    // the parent/prerequisite itself, not a self-edge on the task being created.
+    if (context.mapping.roleToField.projects in prepared.frontmatter) await validateProjects(context, ref, prepared.frontmatter[context.mapping.roleToField.projects], undefined);
+    if (context.mapping.roleToField.blockedBy in prepared.frontmatter) await validateDependencies(context, ref, prepared.frontmatter[context.mapping.roleToField.blockedBy], undefined);
+    context.validateTypes(prepared.frontmatter, ["task"]);
+    let result: Awaited<ReturnType<typeof context.collection.create>>;
+    try {
+      result = await context.collection.create({ type: "task", path: ref, frontmatter: prepared.frontmatter, body });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      if (attempt + 1 < attempts) continue;
+      throw new AgentError("path_conflict", `Creation path was occupied concurrently: ${ref}. Choose an unoccupied explicit path or retry later.`);
+    }
     if (result.error) {
       if (["path_conflict", "file_exists"].includes(result.error.code) && attempt + 1 < attempts) continue;
       throw new AgentError(result.error.code, result.error.message, result);

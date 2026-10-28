@@ -2,6 +2,7 @@ import { Collection, DataContractRegistry, getType, loadConfig } from "@callumal
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TASKNOTES_SPEC_VERSION } from "@tasknotes/model/types";
 import { selectCollectionPath } from "./config.js";
 import { buildFieldMapping, normalizeTaskTypeDefinition } from "./field-mapping.js";
 import { supportedCreationTemplateValues } from "./create-compat.js";
@@ -32,6 +33,8 @@ export async function diagnoseCollection(flagPath?: string) {
   const normalized = normalizeTaskTypeDefinition(taskType);
   const mapping = buildFieldMapping(normalized.fields, normalized.displayNameKey);
   const issues: DiagnosticIssue[] = [];
+  const supportedTaskContract = !(taskType.implements ?? []).some(item => item.contract === "tasknotes.task" && item.version !== TASKNOTES_SPEC_VERSION);
+  if (!supportedTaskContract) issues.push({ code: "unsupported_capability", message: `Agent operations require tasknotes.task ${TASKNOTES_SPEC_VERSION}; this build will not reinterpret a different declared contract.` });
   for (const warning of [...(loaded.warnings ?? []), ...(loadedType.warnings ?? [])]) {
     issues.push({ code: "configuration_warning", message: warning });
   }
@@ -74,16 +77,16 @@ export async function diagnoseCollection(flagPath?: string) {
       coreRename: typeof Collection.prototype.rename === "function",
       coreContractView: typeof Collection.prototype.getContractView === "function",
       coreValidation: typeof Collection.prototype.validate === "function",
-      literalCreation: true,
-      agentMutations: true,
+      literalCreation: supportedTaskContract,
+      agentMutations: supportedTaskContract,
       agentExactPaths: true,
       atomicSingleTaskReplacement: true,
-      evidence: true,
-      lifecycleTransitions: true,
-      recurringInstanceTransitions: true,
-      hierarchy: true,
-      dependencies: true,
-      relocation: true,
+      evidence: supportedTaskContract,
+      lifecycleTransitions: supportedTaskContract,
+      recurringInstanceTransitions: supportedTaskContract,
+      hierarchy: supportedTaskContract,
+      dependencies: supportedTaskContract,
+      relocation: supportedTaskContract,
       exclusiveClaims: false,
       strictCrossApplicationCas: false,
     },
