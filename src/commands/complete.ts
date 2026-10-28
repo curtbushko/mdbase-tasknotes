@@ -8,7 +8,9 @@ import {
   isCompletedStatus,
   resolveDisplayTitle,
 } from "../field-mapping.js";
-import { resolveDateOrToday, resolveOperationTargetDate } from "../date.js";
+import { resolveOperationTargetDate } from "../date.js";
+import { withAgent } from "../agent.js";
+import { statusFields } from "../task-lifecycle.js";
 
 export async function completeCommand(
   pathOrTitle: string,
@@ -83,23 +85,14 @@ export async function completeCommand(
         return;
       }
 
-      const today = resolveDateOrToday(options.date);
-      const plan = buildSpecCompleteTaskUpdate({
-        frontmatter: fm,
-        targetDate: today,
-        completedStatus: completionStatus,
-        path: taskPath,
+      await withAgent(options.path, async context => {
+        const current = await context.read(taskPath);
+        const plan = await statusFields(context, current, completionStatus, { completedDate: options.date });
+        // Interactive writes retain the collection's warning policy; lifecycle
+        // planning is shared with the stricter agent mutation surface.
+        const result = await collection.update({ path: taskPath, fields: plan.fields, if_revision: current.revision });
+        if (result.error) throw new Error(result.error.message);
       });
-
-      const result = await collection.update({
-        path: taskPath,
-        fields: denormalizeFrontmatter(plan.fields, mapping),
-      });
-
-      if (result.error) {
-        showError(`Failed to complete task: ${result.error.message}`);
-        process.exit(1);
-      }
 
       showSuccess(`Completed: ${taskTitle}`);
     }, options.path);

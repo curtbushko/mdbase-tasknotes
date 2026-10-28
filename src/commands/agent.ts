@@ -1,6 +1,7 @@
 import { AgentError, invalid, readAgentInput, withAgent } from "../agent.js";
 import { createAgentTask } from "../agent-create.js";
 import { appendEvidence, describeTask } from "../task-content.js";
+import { transitionInstance, transitionTask } from "../task-lifecycle.js";
 
 export async function agentCommand(operation: string, ref: string | undefined, options: { path?: string; input?: string; json?: boolean }): Promise<void> {
   try {
@@ -16,6 +17,8 @@ export async function agentCommand(operation: string, ref: string | undefined, o
       if (operation === "patch") return context.patch(ref, input);
       if (operation === "describe") return describeTask(context, ref, input);
       if (operation === "note") return appendEvidence(context, ref, input);
+      if (["status", "complete", "reopen", "block"].includes(operation)) return transitionTask(context, ref, operation, input);
+      if (["complete-instance", "reopen-instance", "skip-instance", "unskip-instance"].includes(operation)) return transitionInstance(context, ref, operation, input);
       throw new AgentError("invalid_input", `Unknown agent operation: ${operation}`);
     });
     if (options.json) console.log(JSON.stringify({ version: 1, ok: true, result }));

@@ -1,6 +1,6 @@
 project: "mtn Agent Task Workflows"
 prd: "prd-agent-task-workflows.md"
-current_phase: 5
+current_phase: 6
 phases:
   - id: 1
     name: "Compatibility baseline, collection diagnostics, and safe initialization"
@@ -25,8 +25,8 @@ phases:
   - id: 5
     name: "Shared lifecycle and typed status transitions"
     file: "phase-05-lifecycle.md"
-    status: pending
-    progress: "0/5"
+    status: completed
+    progress: "5/5"
   - id: 6
     name: "Native project hierarchy and deduplicated leaf progress"
     file: "phase-06-hierarchy.md"

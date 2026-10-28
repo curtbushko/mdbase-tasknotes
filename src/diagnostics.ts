@@ -78,13 +78,15 @@ export async function diagnoseCollection(flagPath?: string) {
       agentExactPaths: true,
       atomicSingleTaskReplacement: true,
       evidence: true,
+      lifecycleTransitions: true,
+      recurringInstanceTransitions: true,
       hierarchy: false,
       dependencies: false,
       relocation: false,
       exclusiveClaims: false,
       strictCrossApplicationCas: false,
     },
-    agentEligibilityPolicy: null,
+    agentEligibilityPolicy: taskType.domain?.["x-mtn-agent-policy"] ?? null,
     issues,
   };
 }

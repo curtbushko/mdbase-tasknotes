@@ -1,6 +1,7 @@
 import { withCollection, resolveTaskPath } from "../collection.js";
 import { showError, showSuccess } from "../format.js";
 import { normalizeFrontmatter, denormalizeFrontmatter, resolveDisplayTitle } from "../field-mapping.js";
+import { withAgent } from "../agent.js";
 
 export async function updateCommand(
   pathOrTitle: string,
@@ -68,6 +69,14 @@ export async function updateCommand(
       if (Object.keys(fields).length === 0) {
         showError("No fields to update. Use flags like --status, --priority, --due, etc.");
         process.exit(1);
+      }
+
+      if (options.status) {
+        await withAgent(options.path, context => context.patch(taskPath, {
+          operations: Object.entries(denormalizeFrontmatter(fields, mapping)).map(([field, value]) => ({ op: "set", field, value })),
+        }));
+        showSuccess(`Updated: ${taskTitle}`);
+        return;
       }
 
       const result = await collection.update({

@@ -74,7 +74,7 @@ test('agent fails closed on invalid typed writes and reserved semantic fields', 
   for (const operation of [
     { op: 'set', field: 'timeEstimate', value: '15' },
     { op: 'unset', field: 'status' },
-    { op: 'set', field: 'status', value: 'done' },
+    { op: 'set', field: 'status', value: 'not-configured' },
     { op: 'set', field: 'projects', value: ['[[tasks/a]]'] },
     { op: 'set', field: 'blockedBy', value: [{ uid: '[[tasks/a]]', reltype: 'FINISHTOSTART' }] },
     { op: 'set', field: 'blocking', value: ['tasks/b.md'] },

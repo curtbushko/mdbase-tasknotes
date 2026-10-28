@@ -159,6 +159,47 @@ mutations refuse to hide malformed history until explicitly repaired. Unstructur
 human text remains available in the body and survives description/evidence edits.
 Review approval is evidence only, not an automatic transition to completion.
 
+## Shared lifecycle
+
+`agent status REF` accepts `{status,completedDate?}`. `agent complete` selects the
+first configured completed value; `agent reopen` selects the configured incomplete
+default (or an explicit status). Historical dates must be real YYYY-MM-DD values
+and accompany a completed status. The same model planner handles typed generic
+status sets, legacy non-recurring complete, and legacy status updates. Agent writes
+enforce schema constraints; legacy completion retains ordinary warning-policy
+compatibility. Repeating the same status intent does not refresh dates. Reopening
+non-recurring tasks deletes completion metadata as required by this pinned model.
+
+`complete`/`reopen` explicitly address **base-task** status on the agent surface.
+`complete-instance`, `reopen-instance`, `skip-instance`, and `unskip-instance`
+require `{date:"YYYY-MM-DD"}` and a recurring base task. They use pinned model
+instance/history and recurrence scheduling operations, preserve unrelated history,
+and do not equate an occurrence with base-task completion. Legacy interactive
+recurring `complete` retains its existing occurrence-targeting contract.
+
+Configured workflow statuses are native values, not agent.state metadata. An
+optional top-level task-type extension provides inspectable policy:
+
+```yaml
+x-mtn-agent-policy:
+  blockedStatuses: [waiting-for-owner]
+  activities:
+    build: [open, in-progress]
+    review: [awaiting-review]
+```
+
+The authoritative status enum/binding must already include these values. No names
+are inferred or automatically added. `agent block` requires explicit `status` and
+`blocker`; entering a configured blocked status through generic/dedicated agent
+updates also requires a blocker. The explanation is appended as external-blocker
+evidence in the same atomic task update. Human edits without explanations remain
+readable; eligibility reporting is completed in phase 7.
+
+Core patch **0.3.0-rc.4-mtn.2** additionally corrects the frontmatter closing-delimiter
+regex, which previously consumed leading blank lines from descriptions (and hid
+evidence boundaries on empty descriptions). Literal body round-trips now preserve
+those lines. The patch remains reproducible from the original retained archive.
+
 ## Verification baseline
 
 Before implementation, `npm test` passed 1,041 tests. Type checking exposed existing

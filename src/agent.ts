@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 import { resolveCollectionPath } from "./config.js";
 import { buildFieldMapping, normalizeTaskTypeDefinition, type FieldMapping } from "./field-mapping.js";
 import { inspectContent } from "./task-content.js";
+import { statusFields } from "./task-lifecycle.js";
 
 type RecordValue = Record<string, unknown>;
 export class AgentError extends Error {
@@ -94,12 +95,28 @@ export class AgentContext {
     }
   }
 
+  async commitFields(current: { ref: string; body: string; frontmatter: RecordValue; revision?: string }, fields: RecordValue, body = current.body) {
+    const candidate = { ...current.frontmatter };
+    for (const [field, value] of Object.entries(fields)) {
+      if (value === undefined) delete candidate[field];
+      else candidate[field] = value;
+    }
+    const names = this.collection.getTypesForFile(current.ref, current.frontmatter);
+    if (!isDeepStrictEqual(this.collection.getTypesForFile(current.ref, candidate), names)) throw new AgentError("protected_field", "Cannot change task/type identification through generic editing.");
+    this.validateTypes(candidate, names);
+    if (isDeepStrictEqual(candidate, current.frontmatter) && body === current.body) return { ...await this.read(current.ref), changed: false };
+    coreResult(await this.collection.update({ path: current.ref, fields, body, if_revision: current.revision }));
+    return { ...await this.read(current.ref), changed: true };
+  }
+
   async patch(ref: string, input: unknown) {
     const request = record(input);
     if (!Array.isArray(request.operations) || !request.operations.length) invalid("Supply a non-empty operations array.");
     const current = await this.read(ref);
     const candidate = { ...current.frontmatter };
     const fields: RecordValue = {};
+    let statusTouched = false;
+    let desiredStatus: unknown;
     const protectedFields = new Set([
       ...this.typeKeys, "blocking", "isBlocking", "isBlocked", "hasSubtasks", "depends_on",
       ...["projects", "blockedBy", "status", "completedDate", "dateCreated", "dateModified", "completeInstances", "skippedInstances"].map(role => this.mapping.roleToField[role as keyof typeof this.mapping.roleToField]),
@@ -112,6 +129,11 @@ export class AgentContext {
       const operation = record(value);
       const field = operation.field;
       if (typeof field !== "string" || !field || ["__proto__", "constructor", "prototype"].includes(field)) invalid("Invalid field name.");
+      if (field === this.mapping.roleToField.status && operation.op === "set") {
+        statusTouched = true;
+        desiredStatus = operation.value;
+        continue;
+      }
       if (protectedFields.has(field)) throw new AgentError("protected_field", `Field ${field} requires its semantic operation; derived fields are read-only.`);
       const op = operation.op;
       if (op === "unset") {
@@ -132,12 +154,9 @@ export class AgentContext {
         fields[field] = next;
       } else invalid("Operation must be set, unset, add, or remove.");
     }
-    const names = this.collection.getTypesForFile(ref, current.frontmatter);
-    if (!isDeepStrictEqual(this.collection.getTypesForFile(ref, candidate), names)) throw new AgentError("protected_field", "Cannot change task/type identification through generic editing.");
-    this.validateTypes(candidate, names);
-    if (isDeepStrictEqual(candidate, current.frontmatter)) return { ...current, changed: false };
-    coreResult(await this.collection.update({ path: ref, fields, if_revision: current.revision }));
-    return { ...await this.read(ref), changed: true };
+    if (request.completedDate !== undefined && !statusTouched) invalid("completedDate must accompany a semantic status transition.");
+    const lifecycle = statusTouched ? await statusFields(this, current, desiredStatus, request) : { fields: {}, body: current.body };
+    return this.commitFields(current, { ...fields, ...lifecycle.fields }, lifecycle.body);
   }
 }
 

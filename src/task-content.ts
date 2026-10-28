@@ -54,7 +54,7 @@ function singleLine(value: unknown, fallback: string, field: string): string {
   return value as string;
 }
 
-export async function appendEvidence(context: AgentContext, ref: string, input: unknown) {
+export async function planEvidenceBody(body: string, input: unknown): Promise<string> {
   const request = record(input);
   const content = await textInput(request, "content");
   if (content === undefined || !content.trim()) invalid("Supply non-empty content or contentFile.");
@@ -68,8 +68,7 @@ export async function appendEvidence(context: AgentContext, ref: string, input: 
     try { parseDateToUTC(request.timestamp as string); } catch { invalid("timestamp must be a valid ISO timestamp."); }
   }
   const intent = intentHash({ content, author, role: role ?? null, category, timestamp: request.timestamp ?? null });
-  const current = await context.read(ref);
-  const parsed = inspectContent(current.body);
+  const parsed = inspectContent(body);
   if (parsed.contentIssues.length) throw new AgentError("content_conflict", "Repair malformed evidence delimiters before appending.", parsed.contentIssues);
   if (!parsed.managed && request.adopt !== true) throw new AgentError("content_consent_required", "This body has no evidence convention. Pass adopt:true to append a boundary after the existing description without rewriting it.");
   if (retryKey) {
@@ -77,11 +76,16 @@ export async function appendEvidence(context: AgentContext, ref: string, input: 
     if (matches.length > 1) throw new AgentError("idempotency_conflict", "Duplicate evidence retry identities require explicit repair.");
     if (matches.length) {
       if (matches[0].intent !== intent) throw new AgentError("idempotency_conflict", "Evidence retry key was used with different intent.");
-      return { ...current, changed: false };
+      return body;
     }
   }
   const metadata = { timestamp: request.timestamp ?? new Date().toISOString(), author, role, category, retryKey, intent };
   const encoded = Buffer.from(JSON.stringify(metadata)).toString("base64url");
   const entry = `\n<!-- mtn:entry:v1:${encoded} -->\n### ${metadata.timestamp} · ${category} · ${author}\n\n${content}${ENTRY_END}`;
-  return context.writeBody(current, current.body + (parsed.managed ? "" : BOUNDARY) + entry);
+  return body + (parsed.managed ? "" : BOUNDARY) + entry;
+}
+
+export async function appendEvidence(context: AgentContext, ref: string, input: unknown) {
+  const current = await context.read(ref);
+  return context.writeBody(current, await planEvidenceBody(current.body, input));
 }

@@ -21,7 +21,7 @@ function create(root, request) {
 test('literal creation round-trips multiline specs, explicit typed fields, and shell-sensitive titles without NLP', () => {
   const root = setup();
   const descriptionFile = join(makeTempDir(), 'spec.md');
-  const body = '# Scope 🧪\n\nhttps://example.com/#tag\n```sh\necho "$HOME"\n```\n';
+  const body = '\n\n# Scope 🧪\n\nhttps://example.com/#tag\n```sh\necho "$HOME"\n```\n';
   writeFileSync(descriptionFile, body);
   const result = create(root, { title: 'tomorrow #urgent @home +phase https://example.com', path: 'tasks/literal.md', descriptionFile,
     fields: { priority: 'high', contexts: ['agent'], customTyped: { enabled: true, items: [{ n: 1 }] } } });
