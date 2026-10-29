@@ -1,0 +1,53 @@
+version: '3'
+
+# Run tasks from the repository root, including when invoked in a subdirectory.
+dir: '{{.TASKFILE_DIR}}'
+
+tasks:
+  default:
+    desc: List available development tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install dependencies from package-lock.json
+    cmds:
+      - npm ci
+
+  build:
+    desc: Build the CLI into dist/
+    cmds:
+      - npm run build
+
+  dev:
+    desc: Rebuild the CLI when source files change
+    cmds:
+      - npm run dev
+
+  start:
+    desc: Build and run the CLI (task start -- --help)
+    cmds:
+      - task: build
+      - npm start -- {{.CLI_ARGS}}
+
+  test:
+    desc: Build and run the test suite
+    cmds:
+      - npm test
+
+  test:tz-parity:
+    desc: Build and check date behavior across time zones
+    cmds:
+      - npm run test:tz-parity
+
+  test:package:
+    desc: Build and smoke-test the npm package
+    cmds:
+      - npm run test:package
+
+  check:
+    desc: Run all tests sequentially (each rebuilds dist/)
+    cmds:
+      - task: test
+      - task: test:tz-parity
+      - task: test:package

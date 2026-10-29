@@ -1,5 +1,9 @@
 node_modules/
 dist/
+/result
+/result-*
 /.ops
+/.tasks/
+/.phases/
 /_types
 /mdbase.yaml
